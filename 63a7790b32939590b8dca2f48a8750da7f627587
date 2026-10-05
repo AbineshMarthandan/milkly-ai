@@ -1,0 +1,193 @@
+src/domain/services/reports/salesReport.ts
+  4f882c683b062e04 1-218
+src/infrastructure/google-sheets/sheets.test.ts
+  4f882c683b062e04 1-64
+src/components/tables/DataTable.tsx
+  4f882c683b062e04 1-258
+src/domain/services/index.ts
+  4f882c683b062e04 1-7,9-19,22-33,35-47,49-50
+src/components/common/Feedback.tsx
+  4f882c683b062e04 1-57,59-96
+src/components/forms/Field.tsx
+  4f882c683b062e04 1-95
+src/app/router/NotFoundPage.tsx
+  4f882c683b062e04 1-20
+src/domain/services/CustomerService.ts
+  4f882c683b062e04 1-2,4-79
+src/features/shared/masterData.ts
+  4f882c683b062e04 1-117
+src/domain/services/ReportService.ts
+  4f882c683b062e04 1-21
+src/domain/services/SettingsService.ts
+  4f882c683b062e04 1-47
+src/components/billing/ThermalReceipt.tsx
+  4f882c683b062e04 1-122
+src/infrastructure/google-sheets/GoogleSheetsDataSource.ts
+  4f882c683b062e04 1-84
+src/infrastructure/google-sheets/repositories/GoogleSheetsSettingsRepository.ts
+  4f882c683b062e04 1-39
+src/styles/index.css
+  4f882c683b062e04 1-49,52,58-65,68-75
+src/components/modals/ConfirmProvider.tsx
+  4f882c683b062e04 1-115
+src/domain/services/BootstrapService.ts
+  4f882c683b062e04 1-43
+src/infrastructure/google-sheets/mappers/rowMapper.ts
+  4f882c683b062e04 1-105
+src/infrastructure/google-sheets/repositories/GoogleSheetsBillRepository.ts
+  4f882c683b062e04 1-2,4-56,58-114,124-129,132-133,137-189
+src/app/providers/queryClient.ts
+  4f882c683b062e04 1-59
+src/infrastructure/google-sheets/client/SheetsApiClient.ts
+  4f882c683b062e04 1-194
+src/domain/services/BillService.ts
+  4f882c683b062e04 1-227
+src/features/vendors/VendorFormDrawer.tsx
+  4f882c683b062e04 1-69
+src/features/vendors/VendorsPage.tsx
+  4f882c683b062e04 1-115
+src/domain/services/ProductService.ts
+  4f882c683b062e04 1-2,4-86
+src/hooks/useAppSettings.ts
+  4f882c683b062e04 1-22
+src/components/forms/Combobox.tsx
+  4f882c683b062e04 1-124
+src/infrastructure/browser-demo/LocalRepositories.ts
+  4f882c683b062e04 1-219
+src/domain/services/billing/billing.test.ts
+  4f882c683b062e04 1-117
+src/domain/services/DashboardService.ts
+  4f882c683b062e04 1-142
+src/infrastructure/shared/async.ts
+  4f882c683b062e04 1-6
+src/components/common/Layout.tsx
+  4f882c683b062e04 1-110
+src/types/env.d.ts
+  4f882c683b062e04 1-11
+src/app/router/guards.tsx
+  4f882c683b062e04 1-45
+src/App.tsx
+  4f882c683b062e04 1-26
+src/features/auth/SetupPage.tsx
+  4f882c683b062e04 1-73
+src/app/store/sessionStore.ts
+  4f882c683b062e04 1-52
+src/components/modals/Overlay.tsx
+  4f882c683b062e04 1-79
+src/components/billing/PrintProvider.tsx
+  4f882c683b062e04 1-94
+src/infrastructure/google-sheets/core/SheetLayout.ts
+  4f882c683b062e04 1-75
+src/domain/services/CategoryService.ts
+  4f882c683b062e04 1-2,4-84
+src/domain/validation/schemas.ts
+  4f882c683b062e04 1-158
+src/main.tsx
+  4f882c683b062e04 1-10
+src/domain/services/domain.test.ts
+  4f882c683b062e04 1-97
+src/infrastructure/google-sheets/diagnostics/SheetsAdministration.ts
+  4f882c683b062e04 1-2,4-276,278-321
+src/infrastructure/google/GoogleIdentityProvider.ts
+  4f882c683b062e04 1-165
+src/features/auth/LoginPage.tsx
+  4f882c683b062e04 1-114
+src/app/layout/ReauthDialog.tsx
+  4f882c683b062e04 1-60
+src/domain/services/MasterDataService.ts
+  4f882c683b062e04 1-11,14-39,41-73
+src/domain/services/dates.ts
+  4f882c683b062e04 1-42
+src/infrastructure/config/connectionConfig.ts
+  4f882c683b062e04 1-90
+src/domain/services/VendorService.ts
+  4f882c683b062e04 1,3-14,16-46
+src/domain/repositories/index.ts
+  4f882c683b062e04 95-139,156
+src/app/store/sessionManager.ts
+  4f882c683b062e04 1-218
+src/hooks/useSession.ts
+  4f882c683b062e04 1-26
+src/infrastructure/google-sheets/repositories/GoogleSheetsSequenceRepository.ts
+  4f882c683b062e04 1-75
+src/infrastructure/google-sheets/core/SheetCollection.ts
+  4f882c683b062e04 1-40,43-258
+src/app/layout/AppLayout.tsx
+  4f882c683b062e04 1-184
+src/hooks/useDebouncedValue.ts
+  4f882c683b062e04 1-10
+src/components/billing/PrintableBill.tsx
+  4f882c683b062e04 1-10
+src/components/billing/Invoice.tsx
+  4f882c683b062e04 1-188
+src/app/router/router.tsx
+  4f882c683b062e04 1-60
+src/features/billing/billDraftStore.ts
+  4f882c683b062e04 1-95
+src/constants/queryKeys.ts
+  4f882c683b062e04 1-23
+src/utils/cn.ts
+  4f882c683b062e04 1-7
+src/domain/services/UserService.ts
+  4f882c683b062e04 1-112
+src/infrastructure/google-sheets/client/BatchReader.ts
+  4f882c683b062e04 1-71
+src/utils/format.ts
+  4f882c683b062e04 1-65
+src/domain/services/billing/catalog.ts
+  4f882c683b062e04 1-157
+src/app/layout/navigation.ts
+  4f882c683b062e04 1-66
+src/domain/services/billing/billDocument.ts
+  4f882c683b062e04 1-150
+src/infrastructure/google-sheets/client/a1.ts
+  4f882c683b062e04 1-54
+src/domain/services/context.ts
+  4f882c683b062e04 1-7
+src/domain/services/RouteService.ts
+  4f882c683b062e04 1,3-14,16-42
+src/types/google-identity.d.ts
+  4f882c683b062e04 1-42
+src/features/auth/InitializePage.tsx
+  4f882c683b062e04 1-71
+src/features/shared/MasterComponents.tsx
+  4f882c683b062e04 1-94
+src/infrastructure/google-sheets/repositories/GoogleSheetsRepository.ts
+  4f882c683b062e04 1-30,32-58
+src/infrastructure/browser-demo/LocalDatabase.ts
+  4f882c683b062e04 1-52
+src/infrastructure/browser-demo/seed.ts
+  4f882c683b062e04 1-244
+src/features/auth/AuthShell.tsx
+  4f882c683b062e04 1-21
+src/features/settings/ConnectionForm.tsx
+  4f882c683b062e04 1-99
+src/features/billing/useBilling.ts
+  4f882c683b062e04 1-86
+src/infrastructure/browser-demo/BrowserDemoDataSource.ts
+  4f882c683b062e04 1-95
+src/components/common/Button.tsx
+  4f882c683b062e04 1-83
+src/infrastructure/shared/audit.ts
+  4f882c683b062e04 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "63a7790b32939590b8dca2f48a8750da7f627587",
+  "prompts": {
+    "4f882c683b062e04": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00e4042d-0536-454b-b061-f4f8c13b4a5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Abinesh M <abinesh.m@gdn-commerce.com>",
+      "messages": [],
+      "total_additions": 8068,
+      "total_deletions": 22,
+      "accepted_lines": 7902,
+      "overriden_lines": 20
+    }
+  }
+}
