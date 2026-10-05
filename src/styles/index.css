@@ -14,6 +14,13 @@
   --color-brand-800: #11534e;
   --color-brand-900: #134541;
   --color-brand-950: #042927;
+
+  /* Chart tokens (validated categorical slots 1 & 3 + recessive chrome). */
+  --color-chart-1: #2a78d6;
+  --color-chart-3: #1baf7a;
+  --color-chart-grid: #e1e0d9;
+  --color-chart-axis: #c3c2b7;
+  --color-chart-muted: #898781;
 }
 
 @layer base {

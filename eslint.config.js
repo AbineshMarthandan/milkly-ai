@@ -19,8 +19,17 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-refresh/only-export-components': [
+        'warn',
+        // Provider files intentionally export their companion hook.
+        { allowConstantExport: true, allowExportNames: ['usePrintBill', 'useConfirm', 'controlClass', 'THERMAL_WIDTH_MM'] },
+      ],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
+  },
+  {
+    // The route table declares lazy page components; it is not itself a component module.
+    files: ['src/app/router/router.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
   },
 );

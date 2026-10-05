@@ -12,3 +12,6 @@ public/app-config.json
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# Local Claude Code tooling
+.claude/

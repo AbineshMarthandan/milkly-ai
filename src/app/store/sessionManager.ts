@@ -210,6 +210,13 @@ export const sessionManager = {
     await queryClient.invalidateQueries();
   },
 
+  /** Keeps the signed-in user in sync after they edit their own record. */
+  syncCurrentUser(user: User): void {
+    if (useSessionStore.getState().user?._id !== user._id) return;
+    currentActor = toActor(user);
+    useSessionStore.setState({ user });
+  },
+
   /** Drops data-source caches and refetches everything on screen. */
   async refreshData(): Promise<void> {
     useSessionStore.getState().dataSource?.clearCache();
