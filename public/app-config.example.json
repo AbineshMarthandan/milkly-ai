@@ -1,0 +1,5 @@
+{
+  "_comment": "Optional runtime config. Copy to app-config.json on the web server to change the connection without rebuilding. Public identifiers only — never secrets.",
+  "googleOAuthClientId": "",
+  "spreadsheetId": ""
+}

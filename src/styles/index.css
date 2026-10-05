@@ -1,0 +1,75 @@
+@import 'tailwindcss';
+
+/* Design tokens. Rebrand by changing the brand scale only. */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --color-brand-50: #effcf9;
+  --color-brand-100: #c9f5ec;
+  --color-brand-200: #94eada;
+  --color-brand-300: #57d8c4;
+  --color-brand-400: #2abfab;
+  --color-brand-500: #14a392;
+  --color-brand-600: #0d8377;
+  --color-brand-700: #0f6961;
+  --color-brand-800: #11534e;
+  --color-brand-900: #134541;
+  --color-brand-950: #042927;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+  /* Hide number spinners: the billing screen has its own steppers. */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ---------------------------------------------------------------- printing
+ * The invoice is rendered into #print-root (outside the app) so the sidebar,
+ * header and every other piece of UI disappear from the printout. */
+@media screen {
+  /* Rendered off-screen (not display:none) so receipts can be measured to
+   * size the thermal roll exactly. */
+  #print-root {
+    position: fixed;
+    top: 0;
+    left: -10000px;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+@media print {
+  #root {
+    display: none !important;
+  }
+  #print-root {
+    position: static;
+    visibility: visible;
+  }
+  body {
+    background: #fff;
+  }
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+}
