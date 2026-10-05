@@ -1,0 +1,99 @@
+src/features/settings/AppSettingsPage.tsx
+  4f882c683b062e04 1-164
+src/features/customers/CustomersPage.tsx
+  4f882c683b062e04 1-183
+src/features/billing/BillSummary.tsx
+  4f882c683b062e04 1-112
+src/features/pastBills/usePastBills.ts
+  4f882c683b062e04 1-70
+src/infrastructure/google-sheets/testing/FakeSheetsServer.ts
+  4f882c683b062e04 1-195
+src/features/customers/CustomerFormDrawer.tsx
+  4f882c683b062e04 1-203
+src/components/charts/BarList.tsx
+  4f882c683b062e04 1-53
+src/features/billing/QuantityInput.tsx
+  4f882c683b062e04 1,3-33,35-36,42-104
+src/features/billing/BillEditor.tsx
+  4f882c683b062e04 1,3-217,230-233,235,238-244,246-402
+src/features/routes/RoutesPage.tsx
+  4f882c683b062e04 1-113
+src/features/users/UsersPage.tsx
+  4f882c683b062e04 1-198
+docs/MONGODB_MIGRATION.md
+  4f882c683b062e04 1-43
+src/features/categories/CategoryFormDrawer.tsx
+  4f882c683b062e04 1-133
+src/features/products/ProductFormDrawer.tsx
+  4f882c683b062e04 1-246
+src/components/charts/StatTile.tsx
+  4f882c683b062e04 1-42
+docs/PERMISSIONS.md
+  4f882c683b062e04 1-30
+vite.config.ts
+  4f882c683b062e04 4
+README.md
+  4f882c683b062e04 1-90
+src/features/users/UserFormDrawer.tsx
+  4f882c683b062e04 1-122
+src/features/routes/RouteFormDrawer.tsx
+  4f882c683b062e04 1-80
+src/features/pastBills/PastBillsPage.tsx
+  4f882c683b062e04 1-95,97-257
+src/features/reports/exportSalesReportPdf.ts
+  4f882c683b062e04 1-19,27-33,43-45,47,49-197,199-249,251-266,268-270,272
+src/components/charts/ColumnChart.tsx
+  4f882c683b062e04 2-27,29-47,58-60,62-65,67-72,75-77,79-130,132-159
+src/features/dashboard/DashboardPage.tsx
+  4f882c683b062e04 1-188
+src/features/billing/EditBillPage.tsx
+  4f882c683b062e04 1-76
+src/features/billing/CatalogTable.tsx
+  4f882c683b062e04 1-175
+src/infrastructure/google-sheets/GoogleSheetsDataSource.test.ts
+  4f882c683b062e04 1-3,5-80,82-86,88-107,109-110,112-113,115-171
+src/features/settings/GoogleSheetsPage.tsx
+  4f882c683b062e04 1-323
+docs/DATA_MODEL.md
+  4f882c683b062e04 1-128
+src/features/categories/CategoriesPage.tsx
+  4f882c683b062e04 1-142
+src/hooks/useUserDirectory.ts
+  4f882c683b062e04 1-18
+src/features/pastBills/BillDetailPage.tsx
+  4f882c683b062e04 1-134
+src/features/reports/ReportsPage.tsx
+  4f882c683b062e04 1-213
+docs/ARCHITECTURE.md
+  4f882c683b062e04 1-138
+src/features/billing/CreateBillPage.tsx
+  4f882c683b062e04 1-27
+src/features/products/ProductsPage.tsx
+  4f882c683b062e04 1-136,138-235
+src/features/reports/VendorBreakdown.tsx
+  4f882c683b062e04 1-160
+eslint.config.js
+  4f882c683b062e04 22-26,30-33
+src/features/users/useUsers.ts
+  4f882c683b062e04 1-5,7-27,32-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "ea11de882bd3314751ac59736af218325a8e09aa",
+  "prompts": {
+    "4f882c683b062e04": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00e4042d-0536-454b-b061-f4f8c13b4a5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Abinesh M <abimarthandan10@gmail.com>",
+      "messages": [],
+      "total_additions": 5424,
+      "total_deletions": 31,
+      "accepted_lines": 5377,
+      "overriden_lines": 37
+    }
+  }
+}
