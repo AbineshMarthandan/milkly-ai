@@ -9,7 +9,7 @@ import { sheetConnectionSchema } from '@/domain/validation/schemas';
  *
  * Precedence (first complete match wins):
  *   1. device   — set by a Tech Admin in Settings → Google Sheets on this browser
- *   2. runtime  — `/app-config.json` deployed next to the app (change without rebuild)
+ *   2. runtime  — `app-config.json` deployed next to the app (change without rebuild)
  *   3. build    — `VITE_GOOGLE_*` variables in a non-committed `.env.local`
  */
 const DEVICE_KEY = 'milkly.connection.v1';
@@ -37,7 +37,7 @@ function readDevice(): GoogleSheetConfig | null {
 
 async function readRuntimeFile(): Promise<Partial<GoogleSheetConfig>> {
   try {
-    const response = await fetch('/app-config.json', { cache: 'no-store' });
+    const response = await fetch(`${import.meta.env.BASE_URL}app-config.json`, { cache: 'no-store' });
     if (!response.ok || !response.headers.get('content-type')?.includes('json')) return {};
     const json = (await response.json()) as { googleOAuthClientId?: string; spreadsheetId?: string };
     return { oauthClientId: json.googleOAuthClientId ?? '', spreadsheetId: json.spreadsheetId ?? '' };

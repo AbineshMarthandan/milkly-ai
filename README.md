@@ -82,6 +82,26 @@ with `--kiosk-printing`.
 Hosting, S3, Nginx). Configure SPA fallback to `index.html`, and add the site's
 origin to the OAuth client.
 
+## Free hosting on GitHub Pages
+
+The workflow in `.github/workflows/deploy-pages.yml` tests, builds and publishes
+the app on every push to `main`.
+
+1. The repository must be **public** for free GitHub Pages (private repositories
+   need a paid plan). The code contains no secrets.
+2. *Settings → Pages → Build and deployment → Source:* **GitHub Actions**.
+3. *Settings → Secrets and variables → Actions → **Variables***. These are public identifiers, not secrets:
+   - `GOOGLE_OAUTH_CLIENT_ID`
+   - `GOOGLE_SPREADSHEET_ID`
+   - optionally `ENABLE_DEMO_MODE` = `true`
+4. In the OAuth client, add `https://<github-username>.github.io` to
+   *Authorised JavaScript origins* (origin only, no path).
+5. Push to `main`. The site appears at `https://<github-username>.github.io/milkly-ai/`.
+
+The build serves from the `/<repo>/` sub-path (`BASE_PATH`). It also ships
+`404.html` as a copy of the app, so deep links and page refreshes work even
+though GitHub Pages has no rewrite rules.
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md): layers, auth and security model, concurrency, caching, limits

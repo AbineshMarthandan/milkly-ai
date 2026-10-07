@@ -57,4 +57,7 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '*', element: <NotFoundPage /> },
-]);
+], {
+  // Matches Vite's `base`, so the app also works under a sub-path (GitHub Pages).
+  basename: import.meta.env.BASE_URL.replace(/\/$/, '') || '/',
+});
