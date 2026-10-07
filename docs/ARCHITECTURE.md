@@ -84,14 +84,21 @@ only place a data source is constructed is `src/app/store/sessionManager.ts`.
 
 | Concern | What the app does | Residual risk |
 | --- | --- | --- |
-| ID / bill-number allocation | `sequences` counter: claim with a random token → wait → verify; retry with backoff. Counters self-heal to `max(existing IDs)`. Bill save re-allocates on a duplicate `_id`. | Two devices saving in the same ~0.5 s window can, very rarely, still collide; the duplicate check on insert catches most of these. |
-| Lost updates | Every document has `version`. Writes re-read the row and reject with `CONCURRENT_UPDATE` if it changed. | Read-then-write is not atomic (sub-second window). |
-| Row addressing | Rows are located by `_id` (fresh read of the `_id` column) before every write. Row numbers are never stored as identity. | — |
-| Partial bill writes | Lines are appended first, the header last ("commit record"). Edits append a new line revision and switch `itemsRevision`. | Failed saves can leave orphan line rows; they are never read. |
+| Two saves landing in the same row | New records are written with the `values.append` API (`INSERT_ROWS`), which always inserts new rows after the table. The app never computes "next empty row" itself. | None. |
+| Same bill number on two devices | 1. `sequences` counter: claim with a random token → wait → verify; on a loss, back off with full jitter and retry from a fresh read. 2. Quick duplicate check before saving. 3. **After** committing, the save re-reads the `_id` column: the header row committed first owns the number; a later duplicate retires its own row (kept, hidden) and is saved again under a new number before the user sees or prints it. | A save never reports a number another bill already owns, and readers only ever trust the first row for a bill ID, so a duplicate can never be listed or printed. If a device drops offline in the second between saving and the check, the user sees an error and its hidden row stays in the sheet for audit. Master-data IDs rely on steps 1–2 only (created rarely, by admins). |
+| Lost updates (two people editing the same record) | Every document has `version`. Writes re-read the row and reject with `CONCURRENT_UPDATE` if it changed. | Read-then-write is not atomic (sub-second window). |
+| Row addressing | Rows are located by `_id` (fresh read of the `_id` column) before every write. Row numbers are never used as identity. | — |
+| Partial bill writes | Lines are appended first, the header last ("commit record"). Edits append a new line revision and switch `itemsRevision`. | Failed or retried saves can leave unreferenced line rows; they are never read. |
 | Hard deletes | None. Everything is soft-deleted (`isActive: false`); bills are cancelled. | — |
 
-For strict guarantees implement `SequenceRepository` with MongoDB
-`findOneAndUpdate({$inc})` or an Apps Script `LockService` endpoint.
+`src/infrastructure/google-sheets/concurrency.test.ts` exercises this against a
+fake Sheets API with random network latency: four cashiers saving back-to-back
+at the same moment, plus a forced "both devices got the same number" race.
+Measured with pessimistic latency (150–300 ms each way): a save takes about
+3 s on its own, and about 3 s / 5 s when two people save at the same instant.
+
+With MongoDB, `SequenceRepository` becomes one atomic `findOneAndUpdate({$inc})`
+and a unique index on `billNumber` replaces the post-commit check.
 
 ## Performance & API quota
 

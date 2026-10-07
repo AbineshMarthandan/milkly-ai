@@ -36,11 +36,27 @@ export class FakeSheetsServer {
   private nextSheetId = 100;
   private nextProtectionId = 1;
 
-  constructor(readonly title = 'Milkly test DB') {
+  constructor(
+    readonly title = 'Milkly test DB',
+    /** Simulated network delay [min, max] ms, applied before AND after the server processes a request. */
+    private readonly latencyMs: [number, number] = [0, 0],
+  ) {
     this.addSheet('Sheet1', 26);
   }
 
+  private async delay() {
+    const [min, max] = this.latencyMs;
+    if (max > 0) await new Promise((resolve) => setTimeout(resolve, min + Math.random() * (max - min)));
+  }
+
   readonly fetch = async (input: string | URL | Request, init: RequestInit = {}): Promise<Response> => {
+    await this.delay(); // request travelling to Google
+    const response = this.handle(input, init);
+    await this.delay(); // response travelling back
+    return response;
+  };
+
+  private handle(input: string | URL | Request, init: RequestInit): Response {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     const method = init.method ?? 'GET';
     const body = init.body ? JSON.parse(String(init.body)) : undefined;

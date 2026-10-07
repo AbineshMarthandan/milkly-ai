@@ -67,13 +67,14 @@ export class GoogleSheetsDataSource implements DataSource {
     this.routes = new GoogleSheetsRouteRepository(collection<Route>('routes'), audit);
     this.customers = new GoogleSheetsCustomerRepository(collection<Customer>('customers'), audit);
     this.users = new GoogleSheetsUserRepository(collection<User>('users'), audit);
+    this.sequences = new GoogleSheetsSequenceRepository(collection<Sequence & { claimToken: string }>('sequences', 0), audit);
     this.bills = new GoogleSheetsBillRepository(
       collection<BillHeaderRow>('bills', BILL_TTL_MS),
       collection<BillLineRow>('bill_items', BILL_TTL_MS),
       audit,
+      this.sequences,
     );
     this.settings = new GoogleSheetsSettingsRepository(collection<SettingsRow>('settings'), audit);
-    this.sequences = new GoogleSheetsSequenceRepository(collection<Sequence & { claimToken: string }>('sequences', 0), audit);
     this.admin = new SheetsAdministration(client, tokens, this.layout, this.settings, audit, identityEmail);
   }
 
