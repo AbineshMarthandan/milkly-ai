@@ -1,0 +1,25 @@
+vite.config.ts
+  4f882c683b062e04 1-2,6,9-27,29-31
+.github/workflows/deploy-pages.yml
+  4f882c683b062e04 1-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "cdcc149dd5207aaf4fd5fb962c7a9b4d69fe7ba7",
+  "prompts": {
+    "4f882c683b062e04": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00e4042d-0536-454b-b061-f4f8c13b4a5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Abinesh M <abimarthandan10@gmail.com>",
+      "messages": [],
+      "total_additions": 87,
+      "total_deletions": 1,
+      "accepted_lines": 87,
+      "overriden_lines": 0
+    }
+  }
+}
