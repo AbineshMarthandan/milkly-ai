@@ -8,7 +8,7 @@ import { AddTile, CardGrid, GridSkeleton, ItemCard } from '@/components/explorer
 import { usePermission } from '@/hooks/useSession';
 import { formatDate } from '@/utils/format';
 import { applyFilters, useCatalog, vendorText } from '../shared/catalog';
-import { ExplorerToolbar, StatusFilter, useEntityActions } from '../shared/MasterComponents';
+import { DeleteImpact, ExplorerToolbar, StatusFilter, useEntityActions } from '../shared/MasterComponents';
 import { useSetActive, type StatusFilterValue } from '../shared/masterData';
 import { useDrawer } from '../shared/useDrawer';
 import { VendorFormDrawer } from './VendorFormDrawer';
@@ -73,7 +73,13 @@ export default function VendorsPage() {
                 canManage,
                 onEdit: () => drawer.edit(vendor),
                 onSetActive: (active) => setActive.mutateAsync({ entity: vendor, active }),
-                deleteNote: <p className="text-xs text-slate-500">Its categories and products will no longer appear on new bills.</p>,
+                deleteNote: (
+                  <DeleteImpact
+                    categories={catalog.categoriesOf(vendor._id).filter((c) => c.isActive).length}
+                    products={catalog.productsOfVendor(vendor._id).filter((p) => p.isActive).length}
+                    parent="vendor"
+                  />
+                ),
               })}
               footer={
                 <>

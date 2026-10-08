@@ -89,6 +89,7 @@ export default function RouteCustomersPage() {
             <CustomerCard
               key={customer._id}
               customer={customer}
+              billingBlocker={customer.isActive && !route.isActive ? `Route “${route.routeName}” is deleted` : null}
               vendorNames={book.vendorNamesOf(customer)}
               canBill={can('bill:create') && route.isActive}
               onOpen={canManage ? () => drawer.edit(customer) : undefined}

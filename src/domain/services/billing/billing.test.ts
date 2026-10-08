@@ -63,6 +63,20 @@ describe('buildCatalog', () => {
     expect(catalog[0].categories[0].products.map((p) => p.productId)).toEqual(['P1', 'P2']);
   });
 
+  it('hides products of a deleted vendor or category without changing the products themselves', () => {
+    const withDeletedVendor = vendors.map((v) => (v._id === 'V2' ? { ...v, isActive: false } : v));
+    const catalog = buildCatalog({ vendors: withDeletedVendor, categories, products });
+    expect(catalog.map((v) => v.vendorId)).toEqual(['V1']);
+    expect(products.find((p) => p._id === 'P4')?.isActive).toBe(true); // product untouched
+
+    const withDeletedCategory = categories.map((c) => (c._id === 'C2' ? { ...c, isActive: false } : c));
+    const ids = buildCatalog({ vendors, categories: withDeletedCategory, products }).flatMap((v) =>
+      v.categories.flatMap((c) => c.products.map((p) => p.productId)),
+    );
+    expect(ids).not.toContain('P3');
+    expect(ids).toEqual(['P1', 'P2', 'P4']);
+  });
+
   it('limits vendors to those applicable to the customer', () => {
     const customer = { vendorIds: ['V2'] } as Pick<Customer, 'vendorIds'>;
     expect(buildCatalog({ vendors, categories, products, customer }).map((v) => v.vendorId)).toEqual(['V2']);

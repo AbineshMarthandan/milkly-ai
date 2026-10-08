@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/common/Layout';
 import { AddTile, Breadcrumbs, CardGrid, GridSkeleton } from '@/components/explorer/Explorer';
 import { usePermission } from '@/hooks/useSession';
 import { applyFilters, plural, useCatalog } from '../shared/catalog';
-import { ExplorerToolbar, StatusFilter, useEntityActions } from '../shared/MasterComponents';
+import { DeleteImpact, ExplorerToolbar, StatusFilter, useEntityActions } from '../shared/MasterComponents';
 import { useSetActive, type StatusFilterValue } from '../shared/masterData';
 import { useDrawer } from '../shared/useDrawer';
 import { CategoryCard } from './CategoryCard';
@@ -88,6 +88,7 @@ export default function VendorCategoriesPage() {
                 canManage,
                 onEdit: () => drawer.edit(category),
                 onSetActive: (active) => setActive.mutateAsync({ entity: category, active }),
+                deleteNote: <DeleteImpact products={catalog.productsOf(category._id).filter((p) => p.isActive).length} parent="category" />,
               })}
             />
           ))}

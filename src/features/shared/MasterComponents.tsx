@@ -109,3 +109,24 @@ export function useEntityActions(): (options: EntityActionOptions) => CardAction
     [confirm],
   );
 }
+
+/**
+ * Spells out what deleting a vendor or category does to the records under it:
+ * nothing is deleted or changed; they are only hidden from new bills until the
+ * parent is restored.
+ */
+export function DeleteImpact({ parent, categories, products }: { parent: 'vendor' | 'category'; categories?: number; products: number }) {
+  const parts = [
+    categories ? `${categories} ${categories === 1 ? 'category' : 'categories'}` : null,
+    products ? `${products} ${products === 1 ? 'product' : 'products'}` : null,
+  ].filter(Boolean);
+  if (!parts.length) return null;
+  const one = (categories ?? 0) + products === 1;
+  return (
+    <p className="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">
+      <b>Nothing under it is deleted.</b> Its {parts.join(' and ')} {one ? 'stays' : 'stay'} saved with {one ? 'its' : 'their'} prices and{' '}
+      {one ? 'is' : 'are'} only hidden from new bills while this {parent} is deleted. Restore the {parent} and {one ? 'it comes' : 'they come'} back
+      automatically.
+    </p>
+  );
+}

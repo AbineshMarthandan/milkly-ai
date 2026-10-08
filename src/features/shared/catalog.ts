@@ -39,6 +39,19 @@ export function useCatalog() {
       /** Products of a vendor, in category order then product order. */
       productsOfVendor: (vendorId: EntityId) =>
         (categoriesByVendor.get(vendorId) ?? []).flatMap((category) => productsByCategory.get(category._id) ?? []),
+      /**
+       * Why an active product is hidden from billing: its vendor or category was
+       * deleted (deactivated). The product itself is untouched and returns to
+       * billing as soon as the parent is restored.
+       */
+      billingBlockerOf: (product: Product): string | null => {
+        if (!product.isActive) return null;
+        const vendor = vendorById.get(product.vendorId);
+        if (vendor && !vendor.isActive) return `Vendor “${vendor.vendorName}” is deleted`;
+        const category = categoryById.get(product.categoryId);
+        if (category && !category.isActive) return `Category “${category.categoryName}” is deleted`;
+        return null;
+      },
     };
   }, [vendors.data, categories.data, products.data]);
 

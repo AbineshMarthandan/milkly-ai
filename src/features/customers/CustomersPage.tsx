@@ -31,9 +31,10 @@ export default function CustomersPage() {
   const results = searching
     ? book.routes.flatMap((route) => applyFilters(book.customersOf(route._id), status, search, customerText).map((customer) => ({ route, customer })))
     : [];
-  const folders = (status === 'active' ? book.routes.filter((route) => route.isActive) : book.routes)
+  // Deleted routes stay visible (dashed) so their stores remain findable.
+  const folders = book.routes
     .map((route) => ({ route, stores: filterByStatus(book.customersOf(route._id), status) }))
-    .filter(({ stores }) => status !== 'inactive' || stores.length > 0);
+    .filter(({ route, stores }) => (status === 'inactive' ? stores.length > 0 : route.isActive || stores.length > 0));
 
   return (
     <>
@@ -65,6 +66,7 @@ export default function CustomersPage() {
               <CustomerCard
                 key={customer._id}
                 customer={customer}
+                billingBlocker={customer.isActive && !route.isActive ? `Route “${route.routeName}” is deleted` : null}
                 context={`${route.routeName} (${route.routeCode})`}
                 vendorNames={book.vendorNamesOf(customer)}
                 canBill={can('bill:create') && route.isActive}

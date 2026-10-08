@@ -44,7 +44,8 @@ export default function VendorProductsPage() {
     );
   }
 
-  const categories = catalog.categoriesOf(vendor._id).filter((category) => category.isActive || status !== 'active');
+  // Deleted categories are kept: their products still exist and are shown as "Not on bills".
+  const categories = catalog.categoriesOf(vendor._id);
   const selectedId = params.get('category');
   const selected = categories.find((category) => category._id === selectedId) ?? null;
   const selectCategory = (id: string | null) => setParams(id ? { category: id } : {}, { replace: true });
@@ -93,7 +94,9 @@ export default function VendorProductsPage() {
                   active ? 'border-brand-600 bg-brand-700 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-800',
                 )}
               >
-                {category.categoryName} <span className={cn('ml-1 text-xs', active ? 'text-brand-100' : 'text-slate-400')}>{count}</span>
+                <span className={cn('isActive' in category && !category.isActive && 'line-through')}>{category.categoryName}</span>
+                {'isActive' in category && !category.isActive && <span className="ml-1 text-xs">(deleted)</span>}
+                <span className={cn('ml-1 text-xs', active ? 'text-brand-100' : 'text-slate-400')}>{count}</span>
               </button>
             );
           })}
@@ -119,12 +122,21 @@ export default function VendorProductsPage() {
       ) : (
         groups.map(({ category, products }, index) => (
           <section key={category._id} className="mb-8">
-            <SectionHeading title={category.categoryName} count={products.length} />
+            <SectionHeading
+              title={
+                <>
+                  {category.categoryName}
+                  {!category.isActive && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">Category deleted</span>}
+                </>
+              }
+              count={products.length}
+            />
             <CardGrid>
               {products.map((product) => (
                 <ProductCard
                   key={product._id}
                   product={product}
+                  billingBlocker={catalog.billingBlockerOf(product)}
                   onOpen={canManage ? () => drawer.edit(product) : undefined}
                   actions={entityActions({
                     entityLabel: 'product',

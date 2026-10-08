@@ -1,4 +1,4 @@
-import { FilePlus2, MapPin, Phone, User } from 'lucide-react';
+import { EyeOff, FilePlus2, MapPin, Phone, User } from 'lucide-react';
 import { Link } from 'react-router';
 import type { Customer } from '@/domain/models';
 import { ItemCard, type CardAction } from '@/components/explorer/Explorer';
@@ -12,16 +12,19 @@ interface CustomerCardProps {
   actions: readonly CardAction[];
   onOpen?: () => void;
   canBill: boolean;
+  /** Set when the store is active but its route was deleted. */
+  billingBlocker?: string | null;
 }
 
 /** A store as a card: contact details, delivery stop, supplied vendors and a quick "bill" link. */
-export function CustomerCard({ customer, vendorNames, context, actions, onOpen, canBill }: CustomerCardProps) {
+export function CustomerCard({ customer, vendorNames, context, actions, onOpen, canBill, billingBlocker }: CustomerCardProps) {
   return (
     <ItemCard
       name={customer.storeName}
       title={customer.storeName}
       subtitle={context}
       inactive={!customer.isActive}
+      className={billingBlocker ? 'border-amber-300 bg-amber-50/40' : undefined}
       actions={actions}
       onOpen={onOpen}
       badge={<span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-800">Stop {customer.priority}</span>}
@@ -60,6 +63,12 @@ export function CustomerCard({ customer, vendorNames, context, actions, onOpen, 
           </li>
         )}
       </ul>
+      {billingBlocker && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-800">
+          <EyeOff className="size-3.5 shrink-0" aria-hidden />
+          {billingBlocker} — restore it to bill this store again.
+        </p>
+      )}
       <div className="mt-3 flex flex-wrap gap-1">
         {vendorNames.length ? (
           vendorNames.map((name) => (

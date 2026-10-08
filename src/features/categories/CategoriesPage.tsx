@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/common/Layout';
 import { CardGrid, FolderTile, GridSkeleton } from '@/components/explorer/Explorer';
 import { usePermission } from '@/hooks/useSession';
 import { applyFilters, plural, useCatalog } from '../shared/catalog';
-import { ExplorerToolbar, StatusFilter, useEntityActions } from '../shared/MasterComponents';
+import { DeleteImpact, ExplorerToolbar, StatusFilter, useEntityActions } from '../shared/MasterComponents';
 import { filterByStatus, useSetActive, type StatusFilterValue } from '../shared/masterData';
 import { useDrawer } from '../shared/useDrawer';
 import { CategoryCard } from './CategoryCard';
@@ -32,9 +32,10 @@ export default function CategoriesPage() {
         applyFilters(catalog.categoriesOf(vendor._id), status, search, (category) => category.categoryName).map((category) => ({ vendor, category })),
       )
     : [];
-  const folders = (status === 'active' ? catalog.vendors.filter((vendor) => vendor.isActive) : catalog.vendors)
+  // Deleted vendors stay visible (dashed) so their categories remain findable.
+  const folders = catalog.vendors
     .map((vendor) => ({ vendor, count: filterByStatus(catalog.categoriesOf(vendor._id), status).length }))
-    .filter(({ count }) => status !== 'inactive' || count > 0);
+    .filter(({ vendor, count }) => (status === 'inactive' ? count > 0 : vendor.isActive || count > 0));
 
   return (
     <>
@@ -77,6 +78,7 @@ export default function CategoriesPage() {
                   canManage,
                   onEdit: () => drawer.edit(category),
                   onSetActive: (active) => setActive.mutateAsync({ entity: category, active }),
+                  deleteNote: <DeleteImpact products={catalog.productsOf(category._id).filter((p) => p.isActive).length} parent="category" />,
                 })}
               />
             ))}

@@ -32,9 +32,10 @@ export default function ProductsPage() {
         applyFilters(catalog.productsOfVendor(vendor._id), status, search, productText).map((product) => ({ vendor, product })),
       )
     : [];
-  const folders = (status === 'active' ? catalog.vendors.filter((vendor) => vendor.isActive) : catalog.vendors)
+  // Deleted vendors stay visible (dashed) so their products remain findable.
+  const folders = catalog.vendors
     .map((vendor) => ({ vendor, count: filterByStatus(catalog.productsOfVendor(vendor._id), status).length }))
-    .filter(({ count }) => status !== 'inactive' || count > 0);
+    .filter(({ vendor, count }) => (status === 'inactive' ? count > 0 : vendor.isActive || count > 0));
 
   return (
     <>
@@ -66,6 +67,7 @@ export default function ProductsPage() {
               <ProductCard
                 key={product._id}
                 product={product}
+                billingBlocker={catalog.billingBlockerOf(product)}
                 context={`${vendor.vendorName} › ${catalog.categoryById.get(product.categoryId)?.categoryName ?? ''}`}
                 onOpen={canManage ? () => drawer.edit(product) : undefined}
                 actions={entityActions({
