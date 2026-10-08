@@ -22,7 +22,7 @@ export default tseslint.config(
       'react-refresh/only-export-components': [
         'warn',
         // Provider files intentionally export their companion hook.
-        { allowConstantExport: true, allowExportNames: ['usePrintBill', 'useConfirm', 'controlClass', 'THERMAL_WIDTH_MM'] },
+        { allowConstantExport: true, allowExportNames: ['usePrintBill', 'useConfirm', 'controlClass', 'THERMAL_WIDTH_MM', 'accentFor', 'useEntityActions'] },
       ],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },

@@ -11,9 +11,12 @@ const SetupPage = lazy(() => import('@/features/auth/SetupPage'));
 const InitializePage = lazy(() => import('@/features/auth/InitializePage'));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
 const VendorsPage = lazy(() => import('@/features/vendors/VendorsPage'));
+const VendorFolderPage = lazy(() => import('@/features/vendors/VendorFolderPage'));
+const CategoryFolderPage = lazy(() => import('@/features/vendors/CategoryFolderPage'));
 const CategoriesPage = lazy(() => import('@/features/categories/CategoriesPage'));
 const ProductsPage = lazy(() => import('@/features/products/ProductsPage'));
 const RoutesPage = lazy(() => import('@/features/routes/RoutesPage'));
+const RouteFolderPage = lazy(() => import('@/features/routes/RouteFolderPage'));
 const CustomersPage = lazy(() => import('@/features/customers/CustomersPage'));
 const CreateBillPage = lazy(() => import('@/features/billing/CreateBillPage'));
 const EditBillPage = lazy(() => import('@/features/billing/EditBillPage'));
@@ -41,9 +44,12 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: guard('dashboard:view', <DashboardPage />) },
       { path: 'masters/vendors', element: guard('vendor:view', <VendorsPage />) },
+      { path: 'masters/vendors/:vendorId', element: guard('vendor:view', <VendorFolderPage />) },
+      { path: 'masters/vendors/:vendorId/:categoryId', element: guard('product:view', <CategoryFolderPage />) },
       { path: 'masters/categories', element: guard('category:view', <CategoriesPage />) },
       { path: 'masters/products', element: guard('product:view', <ProductsPage />) },
       { path: 'masters/routes', element: guard('route:view', <RoutesPage />) },
+      { path: 'masters/routes/:routeId', element: guard('customer:view', <RouteFolderPage />) },
       { path: 'masters/customers', element: guard('customer:view', <CustomersPage />) },
       { path: 'billing/new', element: guard('bill:create', <CreateBillPage />) },
       { path: 'billing/edit/:billId', element: guard('bill:update', <EditBillPage />) },

@@ -1,115 +1,92 @@
-import { createColumnHelper } from '@tanstack/react-table';
 import { Building2, Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { Vendor } from '@/domain/models';
-import { sortByPriority } from '@/domain/services/ordering';
 import { Button } from '@/components/common/Button';
-import { Card, PageHeader, StatusBadge } from '@/components/common/Layout';
-import { DataTable } from '@/components/tables/DataTable';
+import { EmptyState, ErrorState } from '@/components/common/Feedback';
+import { PageHeader } from '@/components/common/Layout';
+import { AddTile, CardGrid, FolderTile, GridSkeleton } from '@/components/explorer/Explorer';
 import { usePermission } from '@/hooks/useSession';
-import { formatDateTime } from '@/utils/format';
-import { IdCell, RowActions, StatusFilter } from '../shared/MasterComponents';
-import { filterByStatus, useMasterList, useSetActive, type StatusFilterValue } from '../shared/masterData';
+import { applyFilters, plural, useCatalog, vendorText } from '../shared/catalog';
+import { ExplorerToolbar, StatusFilter, useEntityActions } from '../shared/MasterComponents';
+import { useSetActive, type StatusFilterValue } from '../shared/masterData';
+import { useDrawer } from '../shared/useDrawer';
 import { VendorFormDrawer } from './VendorFormDrawer';
 
-const column = createColumnHelper<Vendor & { categoryCount: number; productCount: number }>();
-
+/** Vendors as folders, in priority order. Opening one shows its categories and products. */
 export default function VendorsPage() {
   const canManage = usePermission('vendor:manage');
-  const vendors = useMasterList('vendors');
-  const { data: categories = [] } = useMasterList('categories');
-  const { data: products = [] } = useMasterList('products');
+  const catalog = useCatalog();
   const setActive = useSetActive('vendors');
+  const entityActions = useEntityActions();
+  const drawer = useDrawer<Vendor>();
   const [status, setStatus] = useState<StatusFilterValue>('active');
-  const [editing, setEditing] = useState<Vendor | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
-  const openEditor = (vendor: Vendor | null) => {
-    setEditing(vendor);
-    setDrawerOpen(true);
-  };
-
-  const rows = useMemo(
-    () =>
-      sortByPriority(filterByStatus(vendors.data ?? [], status), (vendor) => vendor.vendorName).map((vendor) => ({
-        ...vendor,
-        categoryCount: categories.filter((category) => category.vendorId === vendor._id && category.isActive).length,
-        productCount: products.filter((product) => product.vendorId === vendor._id && product.isActive).length,
-      })),
-    [vendors.data, categories, products, status],
-  );
-
-  const columns = useMemo(
-    () => [
-      column.accessor('priority', { header: 'Priority', meta: { className: 'w-20' } }),
-      column.accessor('vendorName', {
-        header: 'Vendor',
-        cell: (info) => <span className="font-medium text-slate-900">{info.getValue()}</span>,
-      }),
-      column.accessor('_id', { header: 'Vendor ID', cell: (info) => <IdCell id={info.getValue()} /> }),
-      column.accessor('categoryCount', { header: 'Categories', meta: { align: 'right', hideOnMobile: true } }),
-      column.accessor('productCount', { header: 'Products', meta: { align: 'right', hideOnMobile: true } }),
-      column.accessor('isActive', { header: 'Status', cell: (info) => <StatusBadge active={info.getValue()} /> }),
-      column.accessor('updatedAt', {
-        header: 'Updated',
-        cell: (info) => <span className="text-xs text-slate-500">{formatDateTime(info.getValue())}</span>,
-        meta: { hideOnMobile: true },
-      }),
-      column.display({
-        id: 'actions',
-        header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => (
-          <RowActions
-            entityLabel="vendor"
-            name={row.original.vendorName}
-            isActive={row.original.isActive}
-            canManage={canManage}
-            onEdit={() => openEditor(row.original)}
-            onSetActive={(active) => setActive.mutateAsync({ entity: row.original, active })}
-            deleteNote={<p className="text-xs text-slate-500">Its categories and products will no longer appear on new bills.</p>}
-          />
-        ),
-      }),
-    ],
-    [canManage, setActive],
-  );
+  const vendors = applyFilters(catalog.vendors, status, search, vendorText);
 
   return (
     <>
       <PageHeader
         title="Vendors"
-        description="Suppliers whose products you distribute. Priority sets their order on every bill."
+        description="Each vendor is a folder. Open one to see its categories and products. Priority sets the vendor order on every bill."
         actions={
           canManage && (
-            <Button icon={<Plus className="size-4" />} onClick={() => openEditor(null)}>
+            <Button icon={<Plus className="size-4" />} onClick={drawer.create}>
               Add vendor
             </Button>
           )
         }
       />
-      <Card>
-        <DataTable
-          data={rows}
-          columns={columns}
-          loading={vendors.isLoading}
-          error={vendors.error}
-          onRetry={() => void vendors.refetch()}
-          searchPlaceholder="Search vendors…"
-          toolbar={<StatusFilter value={status} onChange={setStatus} />}
-          getRowId={(vendor) => vendor._id}
-          rowClassName={(vendor) => (vendor.isActive ? undefined : 'opacity-60')}
-          emptyTitle={status === 'inactive' ? 'No inactive vendors' : 'No vendors yet'}
-          emptyDescription="Add the companies you buy products from, such as Aavin or Milkymist."
-          emptyAction={
-            canManage && status !== 'inactive' ? (
-              <Button icon={<Building2 className="size-4" />} onClick={() => openEditor(null)}>
-                Add your first vendor
-              </Button>
-            ) : undefined
-          }
-        />
-      </Card>
-      <VendorFormDrawer open={drawerOpen} vendor={editing} onClose={() => setDrawerOpen(false)} />
+      <ExplorerToolbar search={search} onSearch={setSearch} placeholder="Search vendors…">
+        <StatusFilter value={status} onChange={setStatus} />
+      </ExplorerToolbar>
+
+      {catalog.isLoading ? (
+        <GridSkeleton />
+      ) : catalog.error ? (
+        <ErrorState error={catalog.error} onRetry={() => void catalog.refetch()} />
+      ) : vendors.length === 0 && !(canManage && status !== 'inactive' && !search) ? (
+        <EmptyState icon={<Building2 className="size-6" />} title={search ? 'No vendors match your search' : 'No vendors here'} />
+      ) : (
+        <CardGrid>
+          {vendors.map((vendor) => {
+            const categories = catalog.categoriesOf(vendor._id).filter((category) => category.isActive);
+            const products = catalog.productsOfVendor(vendor._id).filter((product) => product.isActive);
+            return (
+              <FolderTile
+                key={vendor._id}
+                name={vendor.vendorName}
+                to={`/masters/vendors/${vendor._id}`}
+                accent={catalog.accentOf(vendor._id)}
+                badge={`#${vendor.priority}`}
+                meta={`${plural(categories.length, 'category', 'categories')} · ${plural(products.length, 'product')}`}
+                inactive={!vendor.isActive}
+                actions={entityActions({
+                  entityLabel: 'vendor',
+                  name: vendor.vendorName,
+                  isActive: vendor.isActive,
+                  canManage,
+                  onEdit: () => drawer.edit(vendor),
+                  onSetActive: (active) => setActive.mutateAsync({ entity: vendor, active }),
+                  deleteNote: <p className="text-xs text-slate-500">Its categories and products will no longer appear on new bills.</p>,
+                })}
+              >
+                <div className="flex flex-wrap gap-1">
+                  {categories.slice(0, 4).map((category) => (
+                    <span key={category._id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+                      {category.categoryName}
+                    </span>
+                  ))}
+                  {categories.length > 4 && <span className="px-1 text-[11px] text-slate-400">+{categories.length - 4} more</span>}
+                </div>
+              </FolderTile>
+            );
+          })}
+          {canManage && status !== 'inactive' && !search && <AddTile folder label="New vendor" onClick={drawer.create} />}
+        </CardGrid>
+      )}
+
+      <VendorFormDrawer open={drawer.open} vendor={drawer.item} onClose={drawer.close} />
     </>
   );
 }

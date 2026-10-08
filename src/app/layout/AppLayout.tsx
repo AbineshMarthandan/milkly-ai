@@ -1,5 +1,5 @@
 import { Dialog, DialogBackdrop, DialogPanel, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { ChevronDown, FlaskConical, LogOut, Menu as MenuIcon, Milk, RefreshCw, Sheet, X } from 'lucide-react';
+import { ChevronDown, Download, FlaskConical, LogOut, Menu as MenuIcon, Milk, RefreshCw, Sheet, WifiOff, X } from 'lucide-react';
 import { Suspense, useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { toast } from 'sonner';
@@ -12,6 +12,7 @@ import { useCan, useCurrentUser } from '@/hooks/useSession';
 import { cn } from '@/utils/cn';
 import { sessionManager } from '../store/sessionManager';
 import { useSessionStore } from '../store/sessionStore';
+import { useInstallPrompt, useOnlineStatus } from '../pwa/pwa';
 import { NAVIGATION } from './navigation';
 import { ReauthDialog } from './ReauthDialog';
 
@@ -116,6 +117,8 @@ export function AppLayout() {
   const [refreshing, setRefreshing] = useState(false);
   const dataSource = useSessionStore((state) => state.dataSource);
   const isDemo = dataSource?.kind === 'browser-demo';
+  const online = useOnlineStatus();
+  const { canInstall, install } = useInstallPrompt();
 
   const refresh = async () => {
     setRefreshing(true);
@@ -149,6 +152,12 @@ export function AppLayout() {
         </Dialog>
 
         <div className="lg:pl-64">
+          {!online && (
+            <div role="status" className="flex items-center justify-center gap-2 bg-slate-800 px-4 py-1.5 text-center text-xs text-white">
+              <WifiOff className="size-3.5 shrink-0" aria-hidden />
+              You’re offline. You can keep entering a bill — saving and loading data need a connection.
+            </div>
+          )}
           {isDemo && (
             <div className="flex items-center justify-center gap-2 bg-amber-100 px-4 py-1.5 text-center text-xs text-amber-900">
               <FlaskConical className="size-3.5 shrink-0" aria-hidden />
@@ -166,7 +175,16 @@ export function AppLayout() {
                 {dataSource.label}
               </span>
             )}
-            <IconButton label="Refresh data" onClick={() => void refresh()} disabled={refreshing}>
+            {canInstall && (
+              <button
+                type="button"
+                onClick={() => void install()}
+                className="hidden items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-800 hover:bg-brand-100 sm:inline-flex"
+              >
+                <Download className="size-3.5" aria-hidden /> Install app
+              </button>
+            )}
+            <IconButton label="Refresh data" onClick={() => void refresh()} disabled={refreshing || !online}>
               <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
             </IconButton>
             <UserMenu />

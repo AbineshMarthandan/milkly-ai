@@ -1,143 +1,95 @@
-import { createColumnHelper } from '@tanstack/react-table';
 import { Plus, Tags } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import type { Category, EntityId } from '@/domain/models';
-import { sortByPriority } from '@/domain/services/ordering';
+import { useState } from 'react';
+import type { Category } from '@/domain/models';
 import { Button } from '@/components/common/Button';
-import { Card, PageHeader, StatusBadge } from '@/components/common/Layout';
-import { Combobox, type ComboOption } from '@/components/forms/Combobox';
-import { DataTable } from '@/components/tables/DataTable';
+import { EmptyState, ErrorState } from '@/components/common/Feedback';
+import { PageHeader } from '@/components/common/Layout';
+import { CardGrid, FolderTile, GridSkeleton, SectionHeading } from '@/components/explorer/Explorer';
+import { Combobox } from '@/components/forms/Combobox';
 import { usePermission } from '@/hooks/useSession';
-import { IdCell, RowActions, StatusFilter } from '../shared/MasterComponents';
-import { filterByStatus, useMasterList, useSetActive, type StatusFilterValue } from '../shared/masterData';
+import { applyFilters, plural, useCatalog } from '../shared/catalog';
+import { ExplorerToolbar, StatusFilter, useEntityActions } from '../shared/MasterComponents';
+import { useSetActive, type StatusFilterValue } from '../shared/masterData';
+import { useDrawer } from '../shared/useDrawer';
 import { CategoryFormDrawer } from './CategoryFormDrawer';
 
-const column = createColumnHelper<Category & { vendorName: string; productCount: number }>();
-
+/** Every category as a folder, grouped under its vendor in priority order. */
 export default function CategoriesPage() {
   const canManage = usePermission('category:manage');
-  const categories = useMasterList('categories');
-  const { data: vendors = [] } = useMasterList('vendors');
-  const { data: products = [] } = useMasterList('products');
+  const catalog = useCatalog();
   const setActive = useSetActive('categories');
+  const entityActions = useEntityActions();
+  const drawer = useDrawer<Category>();
   const [status, setStatus] = useState<StatusFilterValue>('active');
-  const [vendorId, setVendorId] = useState<EntityId | null>(null);
-  const [editing, setEditing] = useState<Category | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [vendorId, setVendorId] = useState<string | null>(null);
 
-  const openEditor = (category: Category | null) => {
-    setEditing(category);
-    setDrawerOpen(true);
-  };
-
-  // Every vendor (inactive ones too), so inactive categories can still be found.
-  const vendorOptions = useMemo<ComboOption[]>(
-    () =>
-      sortByPriority(vendors, (vendor) => vendor.vendorName).map((vendor) => ({
-        value: vendor._id,
-        label: vendor.vendorName,
-        meta: vendor.isActive ? undefined : 'Inactive',
-      })),
-    [vendors],
-  );
-
-  // Bill order: vendor priority first, then category priority inside the vendor.
-  const rows = useMemo(() => {
-    const vendorById = new Map(vendors.map((vendor) => [vendor._id, vendor]));
-    const vendorRank = new Map(sortByPriority(vendors, (vendor) => vendor.vendorName).map((vendor, index) => [vendor._id, index]));
-    const rankOf = (id: EntityId) => vendorRank.get(id) ?? Number.MAX_SAFE_INTEGER;
-    const visible = filterByStatus(categories.data ?? [], status).filter((category) => !vendorId || category.vendorId === vendorId);
-    return sortByPriority(visible, (category) => category.categoryName)
-      .sort((a, b) => rankOf(a.vendorId) - rankOf(b.vendorId))
-      .map((category) => ({
-        ...category,
-        vendorName: vendorById.get(category.vendorId)?.vendorName ?? category.vendorId,
-        productCount: products.filter((product) => product.categoryId === category._id && product.isActive).length,
-      }));
-  }, [categories.data, vendors, products, status, vendorId]);
-
-  const columns = useMemo(
-    () => [
-      column.accessor('priority', { header: 'Priority', meta: { className: 'w-20' } }),
-      column.accessor('categoryName', {
-        header: 'Category',
-        cell: (info) => <span className="font-medium text-slate-900">{info.getValue()}</span>,
-      }),
-      column.accessor('vendorName', { header: 'Vendor' }),
-      column.accessor('_id', { header: 'Category ID', cell: (info) => <IdCell id={info.getValue()} />, meta: { hideOnMobile: true } }),
-      column.accessor('productCount', { header: 'Products', meta: { align: 'right', hideOnMobile: true } }),
-      column.accessor('isActive', { header: 'Status', cell: (info) => <StatusBadge active={info.getValue()} /> }),
-      column.display({
-        id: 'actions',
-        header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => (
-          <RowActions
-            entityLabel="category"
-            name={row.original.categoryName}
-            isActive={row.original.isActive}
-            canManage={canManage}
-            onEdit={() => openEditor(row.original)}
-            onSetActive={(active) => setActive.mutateAsync({ entity: row.original, active })}
-            deleteNote={<p className="text-xs text-slate-500">Its products will no longer appear on new bills.</p>}
-          />
-        ),
-      }),
-    ],
-    [canManage, setActive],
-  );
+  const groups = catalog.vendors
+    .filter((vendor) => !vendorId || vendor._id === vendorId)
+    .map((vendor) => ({ vendor, categories: applyFilters(catalog.categoriesOf(vendor._id), status, search, (c) => c.categoryName) }))
+    .filter((group) => group.categories.length > 0);
 
   return (
     <>
       <PageHeader
         title="Categories"
-        description="Product groups within each vendor. Priority sets their order inside the vendor on every bill."
+        description="Category folders, grouped by vendor. Open one to see its products. Priority sets the category order inside the vendor on bills."
         actions={
           canManage && (
-            <Button icon={<Plus className="size-4" />} onClick={() => openEditor(null)}>
+            <Button icon={<Plus className="size-4" />} onClick={drawer.create}>
               Add category
             </Button>
           )
         }
       />
-      <Card>
-        <DataTable
-          data={rows}
-          columns={columns}
-          loading={categories.isLoading}
-          error={categories.error}
-          onRetry={() => void categories.refetch()}
-          searchPlaceholder="Search categories…"
-          toolbar={
-            <>
-              <label htmlFor="category-vendor-filter" className="sr-only">
-                Filter by vendor
-              </label>
-              <Combobox
-                id="category-vendor-filter"
-                options={vendorOptions}
-                value={vendorId}
-                onChange={setVendorId}
-                clearable
-                placeholder="All vendors"
-                className="sm:w-56"
-              />
-              <StatusFilter value={status} onChange={setStatus} />
-            </>
-          }
-          getRowId={(category) => category._id}
-          rowClassName={(category) => (category.isActive ? undefined : 'opacity-60')}
-          emptyTitle={status === 'inactive' ? 'No inactive categories' : vendorId ? 'No categories for this vendor' : 'No categories yet'}
-          emptyDescription="Group each vendor's products, such as Milk, Curd or Ghee."
-          emptyAction={
-            canManage && status !== 'inactive' ? (
-              <Button icon={<Tags className="size-4" />} onClick={() => openEditor(null)}>
-                Add a category
-              </Button>
-            ) : undefined
-          }
+      <ExplorerToolbar search={search} onSearch={setSearch} placeholder="Search categories…">
+        <Combobox
+          className="sm:w-56"
+          options={catalog.vendors.map((vendor) => ({ value: vendor._id, label: vendor.vendorName }))}
+          value={vendorId}
+          onChange={setVendorId}
+          placeholder="All vendors"
+          clearable
         />
-      </Card>
-      <CategoryFormDrawer open={drawerOpen} category={editing} defaultVendorId={vendorId} onClose={() => setDrawerOpen(false)} />
+        <StatusFilter value={status} onChange={setStatus} />
+      </ExplorerToolbar>
+
+      {catalog.isLoading ? (
+        <GridSkeleton dense />
+      ) : catalog.error ? (
+        <ErrorState error={catalog.error} onRetry={() => void catalog.refetch()} />
+      ) : groups.length === 0 ? (
+        <EmptyState icon={<Tags className="size-6" />} title={search ? 'No categories match your search' : 'No categories here'} />
+      ) : (
+        groups.map(({ vendor, categories }) => (
+          <section key={vendor._id} className="mb-8">
+            <SectionHeading title={vendor.vendorName} count={categories.length} to={`/masters/vendors/${vendor._id}`} />
+            <CardGrid dense>
+              {categories.map((category) => (
+                <FolderTile
+                  key={category._id}
+                  name={category.categoryName}
+                  to={`/masters/vendors/${vendor._id}/${category._id}`}
+                  accent={catalog.accentOf(vendor._id)}
+                  badge={`#${category.priority}`}
+                  meta={plural(catalog.productsOf(category._id).filter((p) => p.isActive).length, 'product')}
+                  inactive={!category.isActive}
+                  actions={entityActions({
+                    entityLabel: 'category',
+                    name: category.categoryName,
+                    isActive: category.isActive,
+                    canManage,
+                    onEdit: () => drawer.edit(category),
+                    onSetActive: (active) => setActive.mutateAsync({ entity: category, active }),
+                  })}
+                />
+              ))}
+            </CardGrid>
+          </section>
+        ))
+      )}
+
+      <CategoryFormDrawer open={drawer.open} category={drawer.item} defaultVendorId={vendorId} onClose={drawer.close} />
     </>
   );
 }

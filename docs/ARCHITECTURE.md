@@ -121,6 +121,17 @@ Sheets allows roughly 60 read and 60 write requests per minute per user.
 line, plan to archive (start a new spreadsheet per financial year) or migrate to
 MongoDB well before ~250,000 bill lines.
 
+## Offline & installability (PWA)
+
+`vite-plugin-pwa` generates the web manifest and a Workbox service worker.
+* **Precached:** the app shell (HTML, JS, CSS, icons), including the lazy jsPDF chunk.
+* **Not cached:** Google sign-in and Sheets API calls are cross-origin and always go to
+  the network, so business data is never served stale. `app-config.json` is excluded too,
+  so connection changes apply immediately.
+* **Updates** use `registerType: 'prompt'`: the user chooses when to reload (bill drafts
+  are persisted locally, so nothing is lost), and the app checks for a new version hourly.
+* **SPA navigation** falls back to `index.html`, so deep links work offline.
+
 ## Error handling
 
 Every failure becomes an `AppError` with a stable code (`AUTH_EXPIRED`,

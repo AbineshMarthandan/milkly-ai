@@ -1,23 +1,23 @@
-import { createColumnHelper } from '@tanstack/react-table';
-import { Ban, Eye, FilePlus2, Pencil, Printer } from 'lucide-react';
+import { Ban, Eye, FilePlus2, Pencil, Printer, Receipt } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { BillHeader, BillStatus } from '@/domain/models';
 import { addDays, startOfMonth, toLocalIsoDate } from '@/domain/services/dates';
 import { sumMoney } from '@/domain/services/money';
 import { sortByPriority } from '@/domain/services/ordering';
-import { Button, IconButton } from '@/components/common/Button';
+import { Button } from '@/components/common/Button';
+import { EmptyState, ErrorState } from '@/components/common/Feedback';
 import { Badge, Card, PageHeader, SegmentedControl } from '@/components/common/Layout';
+import { CardGrid, GridSkeleton, ItemCard, type CardAction } from '@/components/explorer/Explorer';
 import { Combobox } from '@/components/forms/Combobox';
 import { Input, Select } from '@/components/forms/Field';
-import { DataTable } from '@/components/tables/DataTable';
 import { useMoney } from '@/hooks/useAppSettings';
 import { useCan } from '@/hooks/useSession';
+import { cn } from '@/utils/cn';
 import { formatDate } from '@/utils/format';
+import { ExplorerToolbar } from '../shared/MasterComponents';
 import { useMasterList } from '../shared/masterData';
 import { useBillList, useCancelBill, usePrintSavedBill } from './usePastBills';
-
-const column = createColumnHelper<BillHeader>();
 
 type StatusFilter = 'finalized' | 'cancelled' | 'all';
 const STATUS_QUERY: Record<StatusFilter, BillStatus[]> = {
@@ -27,6 +27,7 @@ const STATUS_QUERY: Record<StatusFilter, BillStatus[]> = {
 };
 
 type RangePreset = 'today' | '7d' | '30d' | 'month' | 'custom';
+const PAGE = 36;
 
 export function BillStatusBadge({ status }: { status: BillStatus }) {
   if (status === 'cancelled') return <Badge tone="red">Cancelled</Badge>;
@@ -34,7 +35,7 @@ export function BillStatusBadge({ status }: { status: BillStatus }) {
   return <Badge tone="green">Finalized</Badge>;
 }
 
-/** Saved bills only. Drafts — printed or not — never appear here. */
+/** Saved bills only, as cards. Drafts — printed or not — never appear here. */
 export default function PastBillsPage() {
   const today = toLocalIsoDate();
   const can = useCan();
@@ -47,6 +48,8 @@ export default function PastBillsPage() {
   const [routeId, setRouteId] = useState<string | null>(null);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [vendorId, setVendorId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [visible, setVisible] = useState(PAGE);
 
   const bills = useBillList({ dateFrom, dateTo, statuses: STATUS_QUERY[status] });
   const { data: routes = [] } = useMasterList('routes');
@@ -57,6 +60,7 @@ export default function PastBillsPage() {
 
   const applyPreset = (next: RangePreset) => {
     setPreset(next);
+    setVisible(PAGE);
     if (next === 'today') setDateFrom(today);
     if (next === '7d') setDateFrom(addDays(today, -6));
     if (next === '30d') setDateFrom(addDays(today, -29));
@@ -64,16 +68,16 @@ export default function PastBillsPage() {
     if (next !== 'custom') setDateTo(today);
   };
 
-  const rows = useMemo(
-    () =>
-      (bills.data ?? []).filter(
-        (bill) =>
-          (!routeId || bill.routeId === routeId) &&
-          (!customerId || bill.customerId === customerId) &&
-          (!vendorId || bill.vendorIds.includes(vendorId)),
-      ),
-    [bills.data, routeId, customerId, vendorId],
-  );
+  const rows = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (bills.data ?? []).filter(
+      (bill) =>
+        (!routeId || bill.routeId === routeId) &&
+        (!customerId || bill.customerId === customerId) &&
+        (!vendorId || bill.vendorIds.includes(vendorId)) &&
+        (!needle || `${bill.billNumber} ${bill.customerSnapshot.storeName}`.toLowerCase().includes(needle)),
+    );
+  }, [bills.data, routeId, customerId, vendorId, search]);
   const finalizedTotal = sumMoney(rows.filter((bill) => bill.status === 'finalized').map((bill) => bill.grandTotal));
 
   const routeOptions = sortByPriority(routes, (route) => route.routeName).map((route) => ({ value: route._id, label: route.routeName, meta: route.routeCode }));
@@ -83,65 +87,19 @@ export default function PastBillsPage() {
   ).map((customer) => ({ value: customer._id, label: customer.storeName, meta: customer._id }));
   const vendorOptions = sortByPriority(vendors, (vendor) => vendor.vendorName).map((vendor) => ({ value: vendor._id, label: vendor.vendorName }));
 
-  const columns = useMemo(
-    () => [
-      column.accessor('billNumber', {
-        header: 'Bill No',
-        cell: (info) => (
-          <Link to={`/billing/history/${info.row.original._id}`} className="font-mono text-xs font-semibold text-brand-700 hover:underline" onClick={(event) => event.stopPropagation()}>
-            {info.getValue()}
-          </Link>
-        ),
-      }),
-      column.accessor('billDate', { header: 'Date', cell: (info) => formatDate(info.getValue()), meta: { className: 'whitespace-nowrap' } }),
-      column.accessor((bill) => bill.routeSnapshot.routeName, { id: 'route', header: 'Route', meta: { hideOnMobile: true } }),
-      column.accessor((bill) => bill.customerSnapshot.storeName, {
-        id: 'customer',
-        header: 'Customer',
-        cell: (info) => <span className="font-medium text-slate-900">{info.getValue()}</span>,
-      }),
-      column.accessor('itemCount', { header: 'Items', meta: { align: 'right', hideOnMobile: true } }),
-      column.accessor('grandTotal', {
-        header: 'Grand total',
-        meta: { align: 'right' },
-        cell: (info) => (
-          <span className={info.row.original.status === 'cancelled' ? 'text-slate-400 line-through' : 'font-semibold text-slate-900'}>
-            {money(info.getValue())}
-          </span>
-        ),
-      }),
-      column.accessor('createdByName', { header: 'Created by', meta: { hideOnMobile: true } }),
-      column.accessor('status', { header: 'Status', cell: (info) => <BillStatusBadge status={info.getValue()} /> }),
-      column.display({
-        id: 'actions',
-        header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => {
-          const bill = row.original;
-          return (
-            <div className="flex justify-end gap-0.5" onClick={(event) => event.stopPropagation()}>
-              <IconButton label={`View ${bill.billNumber}`} onClick={() => navigate(`/billing/history/${bill._id}`)}>
-                <Eye className="size-4" />
-              </IconButton>
-              <IconButton label={`Print ${bill.billNumber}`} disabled={loadingId === bill._id} onClick={() => void printById(bill._id)}>
-                <Printer className="size-4" />
-              </IconButton>
-              {bill.status === 'finalized' && can('bill:update') && (
-                <IconButton label={`Edit ${bill.billNumber}`} onClick={() => navigate(`/billing/edit/${bill._id}`)}>
-                  <Pencil className="size-4" />
-                </IconButton>
-              )}
-              {bill.status === 'finalized' && can('bill:cancel') && (
-                <IconButton label={`Cancel ${bill.billNumber}`} tone="danger" onClick={() => void cancelBill(bill)}>
-                  <Ban className="size-4" />
-                </IconButton>
-              )}
-            </div>
-          );
-        },
-      }),
-    ],
-    [money, navigate, can, loadingId, printById, cancelBill],
-  );
+  const actionsFor = (bill: BillHeader): CardAction[] => {
+    const actions: CardAction[] = [
+      { label: 'View', icon: Eye, onSelect: () => navigate(`/billing/history/${bill._id}`) },
+      { label: loadingId === bill._id ? 'Preparing…' : 'Print', icon: Printer, onSelect: () => void printById(bill._id) },
+    ];
+    if (bill.status === 'finalized' && can('bill:update')) {
+      actions.push({ label: 'Edit', icon: Pencil, onSelect: () => navigate(`/billing/edit/${bill._id}`) });
+    }
+    if (bill.status === 'finalized' && can('bill:cancel')) {
+      actions.push({ label: 'Cancel bill', icon: Ban, tone: 'danger', onSelect: () => void cancelBill(bill) });
+    }
+    return actions;
+  };
 
   return (
     <>
@@ -158,7 +116,7 @@ export default function PastBillsPage() {
         }
       />
 
-      <Card className="mb-4 p-3">
+      <Card className="mb-5 p-3">
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <div className="mb-1 text-xs font-medium text-slate-500">Period</div>
@@ -226,33 +184,76 @@ export default function PastBillsPage() {
         </div>
       </Card>
 
-      <Card>
-        <DataTable
-          data={rows}
-          columns={columns}
-          loading={bills.isLoading}
-          error={bills.error}
-          onRetry={() => void bills.refetch()}
-          searchPlaceholder="Search bill no or store…"
-          getRowId={(bill) => bill._id}
-          onRowClick={(bill) => navigate(`/billing/history/${bill._id}`)}
-          rowClassName={(bill) => (bill.status === 'cancelled' ? 'bg-rose-50/30' : undefined)}
-          emptyTitle="No bills in this period"
-          emptyDescription="Try a wider date range or different filters."
-          footer={
-            rows.length > 0 && (
-              <div className="flex justify-end gap-6 border-t border-slate-100 bg-slate-50/60 px-4 py-2.5 text-sm">
-                <span className="text-slate-500">
-                  {rows.length} bill{rows.length === 1 ? '' : 's'}
-                </span>
-                <span className="text-slate-600">
-                  Finalized total: <b className="tabular text-slate-900">{money(finalizedTotal)}</b>
-                </span>
-              </div>
-            )
-          }
-        />
-      </Card>
+      <ExplorerToolbar search={search} onSearch={setSearch} placeholder="Search bill no or store…">
+        {rows.length > 0 && (
+          <div className="flex gap-4 text-sm text-slate-500 sm:ml-auto">
+            <span>
+              {rows.length} bill{rows.length === 1 ? '' : 's'}
+            </span>
+            <span>
+              Finalized total <b className="tabular text-slate-900">{money(finalizedTotal)}</b>
+            </span>
+          </div>
+        )}
+      </ExplorerToolbar>
+
+      {bills.isLoading ? (
+        <GridSkeleton count={6} />
+      ) : bills.error ? (
+        <ErrorState error={bills.error} onRetry={() => void bills.refetch()} />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={<Receipt className="size-6" />} title="No bills in this period" description="Try a wider date range or different filters." />
+      ) : (
+        <>
+          <CardGrid>
+            {rows.slice(0, visible).map((bill) => {
+              const cancelled = bill.status === 'cancelled';
+              return (
+                <ItemCard
+                  key={bill._id}
+                  name={bill.billNumber}
+                  title={<span className="font-mono">{bill.billNumber}</span>}
+                  subtitle={`${formatDate(bill.billDate)} · ${bill.routeSnapshot.routeName}`}
+                  badge={<BillStatusBadge status={bill.status} />}
+                  actions={actionsFor(bill)}
+                  onOpen={() => navigate(`/billing/history/${bill._id}`)}
+                  className={cn(cancelled && 'border-rose-200 bg-rose-50/30')}
+                  footer={
+                    <>
+                      <span>By {bill.createdByName || '—'}</span>
+                      <span>
+                        {bill.itemCount} item{bill.itemCount === 1 ? '' : 's'}
+                      </span>
+                    </>
+                  }
+                >
+                  <div className="truncate font-medium text-slate-800">{bill.customerSnapshot.storeName}</div>
+                  <div className="mt-2 flex items-end justify-between gap-2">
+                    <span className={cn('text-2xl font-semibold tracking-tight', cancelled ? 'text-slate-400 line-through' : 'text-slate-900')}>
+                      {money(bill.grandTotal)}
+                    </span>
+                    <span className="flex flex-wrap justify-end gap-1">
+                      {bill.vendorSummary.map((vendor) => (
+                        <span key={vendor.vendorId} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+                          {vendor.vendorName}
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                  {cancelled && bill.cancelReason && <p className="mt-2 line-clamp-1 text-xs text-rose-700">{bill.cancelReason}</p>}
+                </ItemCard>
+              );
+            })}
+          </CardGrid>
+          {rows.length > visible && (
+            <div className="mt-5 flex justify-center">
+              <Button variant="secondary" onClick={() => setVisible((count) => count + PAGE)}>
+                Show more ({rows.length - visible} remaining)
+              </Button>
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 }

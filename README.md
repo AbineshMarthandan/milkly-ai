@@ -7,9 +7,14 @@ server. The data layer sits behind repository interfaces, so it can move to Mong
 
 ## Features
 
-- **Masters**: vendors, categories (per vendor), products (per vendor and category),
-  routes, and customers/stores (per route). Each has a priority, search, filters,
-  soft delete and restore.
+- **Masters as folders and cards**: vendors are folders. Opening one shows its
+  category sub-folders and its products as cards, and a category folder shows just its
+  products. Routes are folders of store cards in delivery order, each store with a
+  one-tap **Create bill**. Breadcrumbs, search, Active/Inactive filters, soft delete and
+  restore work everywhere.
+- **Installable app (PWA)**: install on desktop or Android from the *Install app* button,
+  or on iPhone via Share → Add to Home Screen. It opens instantly, works offline for
+  entering bills, and asks before updating to a new version.
 - **Billing**: pick a route, then a store. The catalogue is grouped
   vendor → category → product in priority order.
   - Typing a quantity moves you to the next product with Enter or ↓.
@@ -59,6 +64,17 @@ data is stored only in your browser. Reset it under *Settings → Reset demo dat
 > or accepted anywhere. The access token stays in memory only. App roles are
 > checked in the browser. Use *Protect admin tabs*, and share the spreadsheet
 > carefully. See [Architecture → Limitations](docs/ARCHITECTURE.md#limitations-you-must-know-about).
+
+## Install as an app
+
+The production build is a Progressive Web App.
+- **Chrome / Edge / Android**: click **Install app** in the top bar, or use the browser's install icon.
+- **iPhone / iPad (Safari)**: Share → **Add to Home Screen**.
+
+The app shell is cached, so the app starts offline and you can keep entering a bill.
+Signing in, loading data and saving still need internet, because Google Sheets is the database.
+Business data is never served from a stale cache. When a new version is deployed, a
+message offers **Update**. It never reloads by itself, and bill drafts survive the update.
 
 ## Thermal printers
 

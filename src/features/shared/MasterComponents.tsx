@@ -1,8 +1,9 @@
-import { Pencil, RotateCcw, Trash2 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Pencil, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { useCallback, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { IconButton } from '@/components/common/Button';
 import { SegmentedControl } from '@/components/common/Layout';
+import type { CardAction } from '@/components/explorer/Explorer';
+import { Input } from '@/components/forms/Field';
 import { useConfirm } from '@/components/modals/ConfirmProvider';
 import type { StatusFilterValue } from './masterData';
 
@@ -16,7 +17,35 @@ export function StatusFilter({ value, onChange }: { value: StatusFilterValue; on
   return <SegmentedControl ariaLabel="Status filter" value={value} options={STATUS_OPTIONS} onChange={onChange} />;
 }
 
-interface RowActionsProps {
+/** Search box + filters row above a folder or card grid. */
+export function ExplorerToolbar({
+  search,
+  onSearch,
+  placeholder,
+  children,
+}: {
+  search: string;
+  onSearch: (value: string) => void;
+  placeholder: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <Input
+        type="search"
+        value={search}
+        onChange={(event) => onSearch(event.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        leading={<Search className="size-4" />}
+        className="sm:w-72"
+      />
+      {children}
+    </div>
+  );
+}
+
+export interface EntityActionOptions {
   /** e.g. "vendor" */
   entityLabel: string;
   name: string;
@@ -30,65 +59,53 @@ interface RowActionsProps {
 }
 
 /**
- * Edit / Delete / Restore buttons for a master-data row. "Delete" is always a
- * soft delete: the record is deactivated, hidden from billing, and can be
- * restored. Historical bills keep their own snapshot.
+ * Builds the Edit / Delete / Restore menu for a folder or card. "Delete" is
+ * always a soft delete: the record is deactivated, hidden from billing, and
+ * can be restored. Saved bills keep their own snapshot.
  */
-export function RowActions({ entityLabel, name, isActive, canManage, onEdit, onSetActive, deleteNote }: RowActionsProps) {
+export function useEntityActions(): (options: EntityActionOptions) => CardAction[] {
   const confirm = useConfirm();
-  if (!canManage) return null;
-
-  const remove = async () => {
-    const ok = await confirm({
-      title: `Delete ${entityLabel}?`,
-      tone: 'danger',
-      confirmLabel: 'Delete',
-      description: (
-        <div className="space-y-2">
-          <p>
-            <b>{name}</b> will be deactivated and hidden from billing. Saved bills are not affected, and you can restore it at any time from the
-            “Inactive” filter.
-          </p>
-          {deleteNote}
-        </div>
-      ),
-    });
-    if (!ok) return;
-    try {
-      await onSetActive(false);
-      toast.success(`${name} deleted (deactivated)`);
-    } catch {
-      /* error toast shown by the mutation cache */
-    }
-  };
-
-  const restore = async () => {
-    try {
-      await onSetActive(true);
-      toast.success(`${name} restored`);
-    } catch {
-      /* error toast shown by the mutation cache */
-    }
-  };
-
-  return (
-    <div className="flex justify-end gap-0.5" onClick={(event) => event.stopPropagation()}>
-      <IconButton label={`Edit ${name}`} onClick={onEdit}>
-        <Pencil className="size-4" />
-      </IconButton>
-      {isActive ? (
-        <IconButton label={`Delete ${name}`} tone="danger" onClick={() => void remove()}>
-          <Trash2 className="size-4" />
-        </IconButton>
-      ) : (
-        <IconButton label={`Restore ${name}`} tone="brand" onClick={() => void restore()}>
-          <RotateCcw className="size-4" />
-        </IconButton>
-      )}
-    </div>
+  return useCallback(
+    ({ entityLabel, name, isActive, canManage, onEdit, onSetActive, deleteNote }: EntityActionOptions) => {
+      if (!canManage) return [];
+      const remove = async () => {
+        const ok = await confirm({
+          title: `Delete ${entityLabel}?`,
+          tone: 'danger',
+          confirmLabel: 'Delete',
+          description: (
+            <div className="space-y-2">
+              <p>
+                <b>{name}</b> will be deactivated and hidden from billing. Saved bills are not affected, and you can restore it at any time from the
+                “Inactive” filter.
+              </p>
+              {deleteNote}
+            </div>
+          ),
+        });
+        if (!ok) return;
+        try {
+          await onSetActive(false);
+          toast.success(`${name} deleted (deactivated)`);
+        } catch {
+          /* error toast shown by the mutation cache */
+        }
+      };
+      const restore = async () => {
+        try {
+          await onSetActive(true);
+          toast.success(`${name} restored`);
+        } catch {
+          /* error toast shown by the mutation cache */
+        }
+      };
+      return [
+        { label: 'Edit', icon: Pencil, onSelect: onEdit },
+        isActive
+          ? { label: 'Delete', icon: Trash2, tone: 'danger', onSelect: () => void remove() }
+          : { label: 'Restore', icon: RotateCcw, tone: 'brand', onSelect: () => void restore() },
+      ];
+    },
+    [confirm],
   );
-}
-
-export function IdCell({ id }: { id: string }) {
-  return <span className="font-mono text-xs text-slate-500">{id}</span>;
 }
