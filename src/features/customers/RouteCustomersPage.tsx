@@ -1,4 +1,4 @@
-import { FilePlus2, FolderOpen, Pencil, Plus, Store } from 'lucide-react';
+import { FilePlus2, FolderOpen, Plus, Store } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { Customer } from '@/domain/models';
@@ -7,23 +7,22 @@ import { EmptyState, ErrorState } from '@/components/common/Feedback';
 import { PageHeader } from '@/components/common/Layout';
 import { AddTile, Breadcrumbs, CardGrid, GridSkeleton } from '@/components/explorer/Explorer';
 import { useCan } from '@/hooks/useSession';
-import { CustomerCard } from '../customers/CustomerCard';
-import { CustomerFormDrawer } from '../customers/CustomerFormDrawer';
 import { applyFilters, customerText, plural, useRouteBook } from '../shared/catalog';
 import { ExplorerToolbar, StatusFilter, useEntityActions } from '../shared/MasterComponents';
 import { useSetActive, type StatusFilterValue } from '../shared/masterData';
 import { useDrawer } from '../shared/useDrawer';
-import { RouteFormDrawer } from './RouteFormDrawer';
+import { CustomerCard } from './CustomerCard';
+import { CustomerFormDrawer } from './CustomerFormDrawer';
 
-/** Inside a route folder: its stores as cards, in delivery (priority) order. */
-export default function RouteFolderPage() {
+/** One route's folder in Customers: its store cards in delivery (priority) order. */
+export default function RouteCustomersPage() {
   const { routeId = '' } = useParams();
   const can = useCan();
+  const canManage = can('customer:manage');
   const book = useRouteBook();
+  const setActive = useSetActive('customers');
   const entityActions = useEntityActions();
-  const setCustomerActive = useSetActive('customers');
-  const routeDrawer = useDrawer<null>();
-  const customerDrawer = useDrawer<Customer>();
+  const drawer = useDrawer<Customer>();
   const [status, setStatus] = useState<StatusFilterValue>('active');
   const [search, setSearch] = useState('');
 
@@ -35,40 +34,34 @@ export default function RouteFolderPage() {
       <EmptyState
         className="py-24"
         title="Route not found"
-        description="It may have been removed or the link is wrong."
         action={
-          <Link to="/masters/routes">
-            <Button variant="secondary">Back to routes</Button>
+          <Link to="/masters/customers">
+            <Button variant="secondary">Back to customers</Button>
           </Link>
         }
       />
     );
   }
 
-  const canManageCustomers = can('customer:manage');
-  const allStores = book.customersOf(route._id);
-  const stores = applyFilters(allStores, status, search, customerText);
+  const all = book.customersOf(route._id);
+  const stores = applyFilters(all, status, search, customerText);
+  const canAdd = canManage && route.isActive;
+  const showAddTile = canAdd && status !== 'inactive' && !search;
 
   return (
     <>
-      <Breadcrumbs items={[{ label: 'Routes', to: '/masters/routes' }, { label: route.routeName }]} />
+      <Breadcrumbs items={[{ label: 'Customers', to: '/masters/customers' }, { label: route.routeName }]} />
       <PageHeader
         title={
           <span className="flex flex-wrap items-center gap-2">
             <FolderOpen className={`size-7 ${book.accentOf(route._id).icon}`} aria-hidden />
             {route.routeName}
             <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs font-medium text-slate-600">{route.routeCode}</span>
-            {!route.isActive && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Inactive</span>}
           </span>
         }
-        description={`${route._id} · Priority #${route.priority} · ${plural(allStores.filter((s) => s.isActive).length, 'store')}`}
+        description={`${plural(all.filter((store) => store.isActive).length, 'store')} in delivery order${route.isActive ? '' : ' · route inactive'}`}
         actions={
           <>
-            {can('route:manage') && (
-              <Button variant="secondary" icon={<Pencil className="size-4" />} onClick={() => routeDrawer.create()}>
-                Edit route
-              </Button>
-            )}
             {can('bill:create') && route.isActive && (
               <Link to={`/billing/new?route=${encodeURIComponent(route._id)}`}>
                 <Button variant="secondary" icon={<FilePlus2 className="size-4" />}>
@@ -76,20 +69,20 @@ export default function RouteFolderPage() {
                 </Button>
               </Link>
             )}
-            {canManageCustomers && route.isActive && (
-              <Button icon={<Plus className="size-4" />} onClick={customerDrawer.create}>
+            {canAdd && (
+              <Button icon={<Plus className="size-4" />} onClick={drawer.create}>
                 Add store
               </Button>
             )}
           </>
         }
       />
-      <ExplorerToolbar search={search} onSearch={setSearch} placeholder={`Search ${route.routeName}…`}>
+      <ExplorerToolbar search={search} onSearch={setSearch} placeholder={`Search ${route.routeName} stores…`}>
         <StatusFilter value={status} onChange={setStatus} />
       </ExplorerToolbar>
 
-      {stores.length === 0 && !(canManageCustomers && route.isActive && !search) ? (
-        <EmptyState icon={<Store className="size-6" />} title={search ? 'No stores match your search' : 'No stores on this route'} />
+      {stores.length === 0 && !showAddTile ? (
+        <EmptyState icon={<Store className="size-6" />} title={search ? 'No stores match your search' : 'No stores here'} />
       ) : (
         <CardGrid>
           {stores.map((customer) => (
@@ -98,23 +91,22 @@ export default function RouteFolderPage() {
               customer={customer}
               vendorNames={book.vendorNamesOf(customer)}
               canBill={can('bill:create') && route.isActive}
-              onOpen={canManageCustomers ? () => customerDrawer.edit(customer) : undefined}
+              onOpen={canManage ? () => drawer.edit(customer) : undefined}
               actions={entityActions({
                 entityLabel: 'store',
                 name: customer.storeName,
                 isActive: customer.isActive,
-                canManage: canManageCustomers,
-                onEdit: () => customerDrawer.edit(customer),
-                onSetActive: (active) => setCustomerActive.mutateAsync({ entity: customer, active }),
+                canManage,
+                onEdit: () => drawer.edit(customer),
+                onSetActive: (active) => setActive.mutateAsync({ entity: customer, active }),
               })}
             />
           ))}
-          {canManageCustomers && route.isActive && status !== 'inactive' && !search && <AddTile label="New store" onClick={customerDrawer.create} />}
+          {showAddTile && <AddTile label="New store" onClick={drawer.create} />}
         </CardGrid>
       )}
 
-      <RouteFormDrawer open={routeDrawer.open} route={route} onClose={routeDrawer.close} />
-      <CustomerFormDrawer open={customerDrawer.open} customer={customerDrawer.item} defaultRouteId={route._id} onClose={customerDrawer.close} />
+      <CustomerFormDrawer open={drawer.open} customer={drawer.item} defaultRouteId={route._id} onClose={drawer.close} />
     </>
   );
 }

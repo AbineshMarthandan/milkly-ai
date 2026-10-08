@@ -7,11 +7,12 @@ server. The data layer sits behind repository interfaces, so it can move to Mong
 
 ## Features
 
-- **Masters as folders and cards**: vendors are folders. Opening one shows its
-  category sub-folders and its products as cards, and a category folder shows just its
-  products. Routes are folders of store cards in delivery order, each store with a
-  one-tap **Create bill**. Breadcrumbs, search, Active/Inactive filters, soft delete and
-  restore work everywhere.
+- **Masters as cards and folders**: each section lists its own items as cards. **Vendors**
+  and **Routes** are plain cards. **Categories** and **Products** start with one folder per
+  vendor; opening it shows that vendor's category cards, or its product cards with category
+  chips to filter. **Customers** has one folder per route, which opens to the store cards in
+  delivery order, each with a one-tap **Create bill**. Search finds items across all folders.
+  Active/Inactive filters, soft delete and restore work everywhere.
 - **Installable app (PWA)**: install on desktop or Android from the *Install app* button,
   or on iPhone via Share → Add to Home Screen. It opens instantly, works offline for
   entering bills, and asks before updating to a new version.
