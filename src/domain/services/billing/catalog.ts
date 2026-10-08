@@ -51,6 +51,9 @@ export interface BuildCatalogInput {
   lockedLines?: readonly BillLine[];
 }
 
+/** Keeps saved bill lines ahead of (and in their original order relative to) newly added products. */
+const LOCKED_ORDER_OFFSET = 1_000_000;
+
 const byVendor = compareByPriority<CatalogVendor>((v) => v.vendorName, (v) => v.priority);
 const byCategory = compareByPriority<CatalogCategory>((c) => c.categoryName, (c) => c.priority);
 const byProduct = compareByPriority<CatalogProduct>((p) => `${p.productName} ${p.unit}`, (p) => p.priority);
@@ -81,23 +84,14 @@ export function buildCatalog({ vendors, categories, products, customer, lockedLi
     return entry;
   };
 
-  // 1. Lines already on the bill keep their snapshot position and price.
+  // 1. Lines already on a saved bill keep everything exactly as saved — names,
+  //    order and prices — even if the master was renamed, re-prioritised or
+  //    deleted since. History is never rewritten by editing a bill.
   const lockedIds = new Set<EntityId>();
   for (const line of lockedLines) {
     lockedIds.add(line.productId);
-    const masterVendor = vendorById.get(line.vendorId);
-    const masterCategory = categoryById.get(line.categoryId);
-    const vendor = ensureVendor(
-      line.vendorId,
-      masterVendor?.vendorName ?? line.vendorName,
-      masterVendor?.priority ?? line.vendorPriority,
-    );
-    const category = ensureCategory(
-      vendor,
-      line.categoryId,
-      masterCategory?.categoryName ?? line.categoryName,
-      masterCategory?.priority ?? line.categoryPriority,
-    );
+    const vendor = ensureVendor(line.vendorId, line.vendorName, line.vendorPriority);
+    const category = ensureCategory(vendor, line.categoryId, line.categoryName, line.categoryPriority);
     const master = productById.get(line.productId);
     const priceChanged = master && (master.mrp !== line.mrp || master.sellingPrice !== line.sellingPrice);
     category.products.push({
@@ -107,7 +101,8 @@ export function buildCatalog({ vendors, categories, products, customer, lockedLi
       purchasePrice: line.purchasePrice,
       mrp: line.mrp,
       sellingPrice: line.sellingPrice,
-      priority: master?.priority ?? line.lineNo,
+      // Saved lines keep their saved order and sort before products added during the edit.
+      priority: line.lineNo - LOCKED_ORDER_OFFSET,
       locked: true,
       currentMrp: priceChanged ? master.mrp : undefined,
       currentSellingPrice: priceChanged ? master.sellingPrice : undefined,

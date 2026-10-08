@@ -80,12 +80,21 @@ export default function PastBillsPage() {
   }, [bills.data, routeId, customerId, vendorId, search]);
   const finalizedTotal = sumMoney(rows.filter((bill) => bill.status === 'finalized').map((bill) => bill.grandTotal));
 
-  const routeOptions = sortByPriority(routes, (route) => route.routeName).map((route) => ({ value: route._id, label: route.routeName, meta: route.routeCode }));
+  // Deleted masters stay selectable: their past bills are kept and must remain findable.
+  const deleted = (active: boolean) => (active ? '' : ' (deleted)');
+  const routeOptions = sortByPriority(routes, (route) => route.routeName).map((route) => ({
+    value: route._id,
+    label: `${route.routeName}${deleted(route.isActive)}`,
+    meta: route.routeCode,
+  }));
   const customerOptions = sortByPriority(
     customers.filter((customer) => !routeId || customer.routeId === routeId),
     (customer) => customer.storeName,
-  ).map((customer) => ({ value: customer._id, label: customer.storeName, meta: customer._id }));
-  const vendorOptions = sortByPriority(vendors, (vendor) => vendor.vendorName).map((vendor) => ({ value: vendor._id, label: vendor.vendorName }));
+  ).map((customer) => ({ value: customer._id, label: `${customer.storeName}${deleted(customer.isActive)}`, meta: customer._id }));
+  const vendorOptions = sortByPriority(vendors, (vendor) => vendor.vendorName).map((vendor) => ({
+    value: vendor._id,
+    label: `${vendor.vendorName}${deleted(vendor.isActive)}`,
+  }));
 
   const actionsFor = (bill: BillHeader): CardAction[] => {
     const actions: CardAction[] = [

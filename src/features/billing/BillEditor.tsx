@@ -2,7 +2,7 @@ import { CalendarClock, ChevronLeft, ChevronRight, History, ListChecks, MapPinne
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { toAppError } from '@/domain/errors/AppError';
+import { isAppError, toAppError } from '@/domain/errors/AppError';
 import type { Bill, Customer } from '@/domain/models';
 import type { BillDraftInput } from '@/domain/services';
 import { quantitiesFromBill } from '@/domain/services/billing/billDocument';
@@ -20,6 +20,7 @@ import { useMoney } from '@/hooks/useAppSettings';
 import { useServices } from '@/hooks/useSession';
 import { cn } from '@/utils/cn';
 import { formatDate } from '@/utils/format';
+import { sessionManager } from '@/app/store/sessionManager';
 import { useMasterList } from '../shared/masterData';
 import { useBillDraftStore, useDraft } from './billDraftStore';
 import { BillSummary } from './BillSummary';
@@ -61,6 +62,27 @@ export function BillEditor({ draftKey, mode }: BillEditorProps) {
   const customer = customers.data?.find((candidate) => candidate._id === draft.customerId) ?? null;
   const { catalog, isLoading, error, refetch } = useBillingCatalog(customer, draft.editing?.lockedLines);
   const { vendors: billVendors, totals } = useDraftTotals(catalog, draft.quantities);
+  const { data: allProducts = [] } = useMasterList('products');
+
+  // Quantities entered for products that are no longer on this store's list
+  // (deleted, or under a deleted vendor/category) are never billed — say so.
+  const catalogIds = useMemo(() => indexCatalog(catalog), [catalog]);
+  const unavailable = useMemo(
+    () =>
+      customer && !isLoading
+        ? Object.keys(draft.quantities)
+            .filter((productId) => (draft.quantities[productId] ?? 0) > 0 && !catalogIds.has(productId))
+            .map((productId) => {
+              const product = allProducts.find((candidate) => candidate._id === productId);
+              return product ? `${product.productName} ${product.unit}` : productId;
+            })
+        : [],
+    [customer, isLoading, draft.quantities, catalogIds, allProducts],
+  );
+  const dropUnavailable = () => {
+    const quantities = Object.fromEntries(Object.entries(draft.quantities).filter(([productId]) => catalogIds.has(productId)));
+    update(draftKey, { quantities });
+  };
 
   const routeOptions = useMemo<ComboOption[]>(() => {
     const list = sortByPriority(
@@ -147,8 +169,10 @@ export function BillEditor({ draftKey, mode }: BillEditorProps) {
         if (andPrint) printBill(bill);
         advanceAfterSave(bill);
       }
-    } catch {
-      /* the mutation cache shows a friendly error toast; the draft is kept */
+    } catch (cause) {
+      // The mutation cache shows a friendly toast; the draft is kept. If the
+      // products changed underneath us, reload them so the screen is current.
+      if (isAppError(cause) && cause.code === 'STALE_DATA') void sessionManager.refreshData();
     }
   };
 
@@ -165,6 +189,7 @@ export function BillEditor({ draftKey, mode }: BillEditorProps) {
       );
     } catch (cause) {
       toast.error(toAppError(cause).userMessage);
+      if (isAppError(cause) && cause.code === 'STALE_DATA') void sessionManager.refreshData();
     } finally {
       setPrinting(false);
     }
@@ -315,6 +340,19 @@ export function BillEditor({ draftKey, mode }: BillEditorProps) {
             </div>
           )}
         </Card>
+
+        {unavailable.length > 0 && (
+          <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="flex-1">
+              <b>{unavailable.length === 1 ? '1 item' : `${unavailable.length} items`} in this draft won’t be billed</b> — no longer available for this
+              store (deleted, or its vendor/category was deleted): {unavailable.slice(0, 4).join(', ')}
+              {unavailable.length > 4 ? '…' : ''}
+            </span>
+            <Button size="sm" variant="secondary" onClick={dropUnavailable}>
+              Remove from draft
+            </Button>
+          </div>
+        )}
 
         <Card className="overflow-hidden">
           {!customer ? (

@@ -111,10 +111,32 @@ Money is rounded to 2 dp and summed in minor units (no floating-point drift).
 
 ### Snapshots and history
 
-Product, vendor, category, customer and route details are **copied into the
-bill** at save time. Changing a price, renaming a vendor or deactivating a
-customer never alters saved bills. When a saved bill is edited, its existing
-lines keep their saved prices; newly added lines use current prices.
+Rule: changing or deleting master data never alters a saved bill, and new
+bills always use the master data as it is now.
+
+* **Saved bills are self-contained.** Product name, unit, prices (incl. purchase
+  price), vendor and category names and order, and the store's and route's
+  details are copied into the bill when it is saved. Viewing, printing, Past
+  Bills, the dashboard and reports read only these copies, so renaming,
+  re-pricing or deleting a product, category, vendor, store or route leaves them
+  exactly as they were.
+* **New bills use current data.** The billing screen lists only active products
+  whose vendor and category are active, at current prices and names. Before a
+  bill is saved (or a draft printed), the service re-checks every line against
+  the current product master. If something changed since the screen was opened
+  (deleted, re-priced, renamed or moved by someone else), it refuses with
+  `STALE_DATA`, refreshes the screen, and asks the user to review.
+* **Drafts** that still hold quantities for an item that is no longer available
+  show a warning banner, and those items are never billed.
+* **Editing a saved bill** keeps its existing lines exactly as saved (names,
+  order, prices), and keeps the store/route details unless the bill is moved to
+  another store. Lines added during the edit use current data and are checked
+  like a new bill.
+* **Past Bills filters** still list deleted vendors, routes and stores (marked
+  "deleted") so their history stays searchable.
+
+`src/infrastructure/google-sheets/history.test.ts` verifies all of the above
+against the Google Sheets implementation.
 
 ## Ordering
 

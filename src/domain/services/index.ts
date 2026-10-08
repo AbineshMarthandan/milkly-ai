@@ -41,7 +41,11 @@ export function createServices(ds: DataSource, context: ServiceContext): AppServ
     products: new ProductService(ds.products, ds.sequences, context, ds.vendors, ds.categories),
     routes: new RouteService(ds.routes, ds.sequences, context),
     customers: new CustomerService(ds.customers, ds.sequences, context, ds.routes, ds.vendors),
-    bills: new BillService(ds.bills, ds.sequences, ds.routes, ds.customers, context),
+    bills: new BillService(ds.bills, ds.sequences, ds.routes, ds.customers, context, {
+      vendors: ds.vendors,
+      categories: ds.categories,
+      products: ds.products,
+    }),
     users: new UserService(ds.users, ds.sequences, context),
     settings: new SettingsService(ds.settings, context),
     dashboard: new DashboardService(ds, ds.bills, context),

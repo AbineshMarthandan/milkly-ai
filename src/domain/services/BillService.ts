@@ -12,8 +12,18 @@ import type {
   IsoDate,
   Route,
 } from '../models';
+import type { Category, Product, Vendor } from '../models/masterData';
 import { assertCan } from '../permissions/permissions';
-import type { BillListQuery, BillRepository, CustomerRepository, RouteRepository, SequenceRepository } from '../repositories';
+import type {
+  BillListQuery,
+  BillRepository,
+  CategoryRepository,
+  CustomerRepository,
+  ProductRepository,
+  RouteRepository,
+  SequenceRepository,
+  VendorRepository,
+} from '../repositories';
 import { buildBillVendors, type QuantityMap } from './billing/billDocument';
 import { calculateTotals, summarizeVendors } from './billing/calculations';
 import type { CatalogVendor } from './billing/catalog';
@@ -27,7 +37,11 @@ export interface BillDraftInput {
   routeId: EntityId;
   customerId: EntityId;
   notes?: string;
-  /** The catalogue exactly as the user saw it — prices are snapshotted from here. */
+  /**
+   * The catalogue exactly as the user saw it — prices are snapshotted from
+   * here. New lines are re-checked against the current product master before
+   * saving or printing (see `assertCatalogCurrent`).
+   */
   catalog: readonly CatalogVendor[];
   quantities: QuantityMap;
 }
@@ -44,6 +58,7 @@ export class BillService {
     private readonly routes: RouteRepository,
     private readonly customers: CustomerRepository,
     private readonly context: ServiceContext,
+    private readonly master: { vendors: VendorRepository; categories: CategoryRepository; products: ProductRepository },
   ) {}
 
   async list(query: BillListQuery = {}): Promise<BillHeader[]> {
@@ -76,6 +91,7 @@ export class BillService {
     const actor = this.context.getActor();
     assertCan(actor, 'bill:print');
     const { route, customer } = await this.resolveParties(input, { allowInactive: true });
+    await this.assertCatalogCurrent(input);
     const content = this.buildContent(input, route, customer);
     const now = new Date().toISOString();
     return {
@@ -104,6 +120,7 @@ export class BillService {
     const actor = this.context.getActor();
     assertCan(actor, 'bill:create');
     const { route, customer } = await this.resolveParties(input, { allowInactive: false });
+    await this.assertCatalogCurrent(input);
     const content = this.buildContent(input, route, customer);
     const now = new Date().toISOString();
 
@@ -137,18 +154,24 @@ export class BillService {
     }
   }
 
-  /** Edits a finalized bill. Existing lines keep the prices captured in the catalogue snapshot. */
+  /**
+   * Edits a finalized bill. Lines already on the bill keep the names and prices
+   * saved with it; lines added now must match the current product master. The
+   * store/route details stay as saved unless the bill is moved to another store.
+   */
   async update(id: EntityId, input: BillDraftInput, expectedVersion: number): Promise<Bill> {
     assertCan(this.context.getActor(), 'bill:update');
     const current = await this.get(id);
     if (current.status !== 'finalized') {
       throw new AppError('VALIDATION', { userMessage: 'Only finalized bills can be edited.' });
     }
-    const { route, customer } = await this.resolveParties(input, {
-      allowInactive: input.customerId === current.customerId,
-    });
+    const sameStore = input.customerId === current.customerId && input.routeId === current.routeId;
+    const { route, customer } = await this.resolveParties(input, { allowInactive: sameStore });
+    await this.assertCatalogCurrent(input);
     const content = this.buildContent(input, route, customer);
-    const changes: EntityChanges<Bill> = { ...content };
+    const changes: EntityChanges<Bill> = sameStore
+      ? { ...content, customerSnapshot: current.customerSnapshot, routeSnapshot: current.routeSnapshot }
+      : { ...content };
     return this.bills.update(id, changes, { expectedVersion });
   }
 
@@ -171,6 +194,64 @@ export class BillService {
       },
       { expectedVersion },
     );
+  }
+
+  /**
+   * New bills must reflect the product master as it is *now*. If a product on
+   * the screen was deleted, moved under a deleted vendor/category, renamed or
+   * re-priced since the screen loaded (e.g. by another admin), refuse and ask
+   * the user to review the refreshed catalogue. Lines already on a saved bill
+   * (`locked`) are exempt — they keep their saved values by design.
+   */
+  private async assertCatalogCurrent(input: BillDraftInput) {
+    const ordered = input.catalog.flatMap((vendor) =>
+      vendor.categories.flatMap((category) =>
+        category.products
+          .filter((product) => !product.locked && (input.quantities[product.productId] ?? 0) > 0)
+          .map((product) => ({ vendor, category, product })),
+      ),
+    );
+    if (!ordered.length) return;
+    const [vendors, categories, products] = await Promise.all([
+      this.master.vendors.getAll(),
+      this.master.categories.getAll(),
+      this.master.products.getAll(),
+    ]);
+    const byId = <T extends { _id: string }>(items: readonly T[]) => new Map(items.map((item) => [item._id, item]));
+    const vendorById = byId<Vendor>(vendors);
+    const categoryById = byId<Category>(categories);
+    const productById = byId<Product>(products);
+
+    const problems: string[] = [];
+    for (const { vendor, category, product } of ordered) {
+      const label = `${product.productName} ${product.unit}`;
+      const current = productById.get(product.productId);
+      const currentVendor = current && vendorById.get(current.vendorId);
+      const currentCategory = current && categoryById.get(current.categoryId);
+      if (!current || !current.isActive || !currentVendor?.isActive || !currentCategory?.isActive) {
+        problems.push(`${label} is no longer available`);
+      } else if (
+        current.mrp !== product.mrp ||
+        current.sellingPrice !== product.sellingPrice ||
+        current.purchasePrice !== product.purchasePrice
+      ) {
+        problems.push(`${label} has a new price`);
+      } else if (
+        current.productName !== product.productName ||
+        current.unit !== product.unit ||
+        current.vendorId !== vendor.vendorId ||
+        current.categoryId !== category.categoryId ||
+        currentVendor.vendorName !== vendor.vendorName ||
+        currentCategory.categoryName !== category.categoryName
+      ) {
+        problems.push(`${label} was renamed or moved`);
+      }
+    }
+    if (problems.length) {
+      throw new AppError('STALE_DATA', {
+        userMessage: `Products changed since this screen was opened: ${problems.slice(0, 3).join('; ')}${problems.length > 3 ? ` (+${problems.length - 3} more)` : ''}. The list has been refreshed — please check the bill and try again.`,
+      });
+    }
   }
 
   private async resolveParties(

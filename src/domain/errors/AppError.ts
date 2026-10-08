@@ -27,6 +27,7 @@ export type AppErrorCode =
   | 'NOT_FOUND'
   | 'REFERENCED'
   | 'CONCURRENT_UPDATE'
+  | 'STALE_DATA'
   | 'READ_FAILED'
   | 'WRITE_FAILED'
   | 'UNKNOWN';
@@ -53,6 +54,7 @@ const DEFAULT_MESSAGES: Record<AppErrorCode, string> = {
   NOT_FOUND: 'The record could not be found. It may have been removed.',
   REFERENCED: 'This record is used elsewhere and cannot be deleted. Deactivate it instead.',
   CONCURRENT_UPDATE: 'Someone else changed this record while you were editing. Reload it and try again.',
+  STALE_DATA: 'Some products changed since this screen was opened. It has been refreshed — please check and try again.',
   READ_FAILED: 'Could not load data. Please try again.',
   WRITE_FAILED: 'Could not save your changes. Please try again.',
   UNKNOWN: 'Something went wrong. Please try again.',
