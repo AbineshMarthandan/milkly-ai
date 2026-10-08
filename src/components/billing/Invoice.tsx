@@ -29,7 +29,7 @@ export function Invoice({ bill, settings, compact = false }: InvoiceProps) {
           className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden text-[64px] font-black tracking-widest text-slate-900/[0.06] uppercase select-none"
           style={{ transform: 'rotate(-24deg)' }}
         >
-          {isDraft ? 'Draft' : 'Cancelled'}
+          {isDraft ? 'Draft' : 'Invalid'}
         </div>
       )}
 
@@ -43,7 +43,7 @@ export function Invoice({ bill, settings, compact = false }: InvoiceProps) {
         </div>
         <div className="shrink-0 text-right">
           <div className={cn('font-bold tracking-wide uppercase', compact ? 'text-sm' : 'text-base')}>
-            {isDraft ? 'Draft bill — not saved' : isCancelled ? 'Cancelled bill' : 'Invoice'}
+            {isDraft ? 'Draft bill — not saved' : isCancelled ? 'Invalid bill' : 'Invoice'}
           </div>
           <dl className="mt-1 grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-left">
             <dt className="text-slate-500">Bill No</dt>
@@ -118,7 +118,7 @@ export function Invoice({ bill, settings, compact = false }: InvoiceProps) {
           )}
           {isCancelled && (
             <p className="font-semibold text-rose-700">
-              Cancelled {formatDateTime(bill.cancelledAt)} — {bill.cancelReason}
+              Marked invalid {formatDateTime(bill.cancelledAt)} — {bill.cancelReason}
             </p>
           )}
         </div>

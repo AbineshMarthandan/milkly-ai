@@ -1,3 +1,4 @@
+import type { IsoDate } from '../models';
 import type { DataSource } from '../repositories';
 import { BillService } from './BillService';
 import { CategoryService } from './CategoryService';
@@ -34,18 +35,27 @@ export interface AppServices {
   reports: ReportService;
 }
 
-export function createServices(ds: DataSource, context: ServiceContext): AppServices {
+export interface ServiceOptions {
+  /** The current business day (defaults to the device's local date); injectable for tests. */
+  today?: () => IsoDate;
+}
+
+export function createServices(ds: DataSource, context: ServiceContext, options: ServiceOptions = {}): AppServices {
   return {
     vendors: new VendorService(ds.vendors, ds.sequences, context),
     categories: new CategoryService(ds.categories, ds.sequences, context, ds.vendors, ds.products),
     products: new ProductService(ds.products, ds.sequences, context, ds.vendors, ds.categories),
     routes: new RouteService(ds.routes, ds.sequences, context),
     customers: new CustomerService(ds.customers, ds.sequences, context, ds.routes, ds.vendors),
-    bills: new BillService(ds.bills, ds.sequences, ds.routes, ds.customers, context, {
-      vendors: ds.vendors,
-      categories: ds.categories,
-      products: ds.products,
-    }),
+    bills: new BillService(
+      ds.bills,
+      ds.sequences,
+      ds.routes,
+      ds.customers,
+      context,
+      { vendors: ds.vendors, categories: ds.categories, products: ds.products },
+      options.today,
+    ),
     users: new UserService(ds.users, ds.sequences, context),
     settings: new SettingsService(ds.settings, context),
     dashboard: new DashboardService(ds, ds.bills, context),

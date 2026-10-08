@@ -28,7 +28,8 @@ import { buildBillVendors, type QuantityMap } from './billing/billDocument';
 import { calculateTotals, summarizeVendors } from './billing/calculations';
 import type { CatalogVendor } from './billing/catalog';
 import type { ServiceContext } from './context';
-import { addDays, isIsoDate } from './dates';
+import { BILL_RULE_MESSAGES, canMarkInvalid, isBillEditable } from './billing/billRules';
+import { addDays, isIsoDate, toLocalIsoDate } from './dates';
 import { BILL_NUMBER_FORMAT, ID_FORMATS, formatSequenceId, randomToken } from './ids';
 
 /** What the billing screen submits. */
@@ -59,6 +60,8 @@ export class BillService {
     private readonly customers: CustomerRepository,
     private readonly context: ServiceContext,
     private readonly master: { vendors: VendorRepository; categories: CategoryRepository; products: ProductRepository },
+    /** The current business day; injectable for tests. */
+    private readonly today: () => IsoDate = () => toLocalIsoDate(),
   ) {}
 
   async list(query: BillListQuery = {}): Promise<BillHeader[]> {
@@ -90,6 +93,7 @@ export class BillService {
   async buildDraftPreview(input: BillDraftInput): Promise<Bill> {
     const actor = this.context.getActor();
     assertCan(actor, 'bill:print');
+    this.assertDatedToday(input);
     const { route, customer } = await this.resolveParties(input, { allowInactive: true });
     await this.assertCatalogCurrent(input);
     const content = this.buildContent(input, route, customer);
@@ -115,10 +119,14 @@ export class BillService {
     };
   }
 
-  /** Saves the draft as a finalized bill with the next sequential bill number. */
+  /**
+   * Saves the draft as a finalized bill with the next sequential bill number.
+   * Always dated today; several bills for the same store on one day are fine.
+   */
   async finalize(input: BillDraftInput): Promise<Bill> {
     const actor = this.context.getActor();
     assertCan(actor, 'bill:create');
+    this.assertDatedToday(input);
     const { route, customer } = await this.resolveParties(input, { allowInactive: false });
     await this.assertCatalogCurrent(input);
     const content = this.buildContent(input, route, customer);
@@ -158,13 +166,17 @@ export class BillService {
    * Edits a finalized bill. Lines already on the bill keep the names and prices
    * saved with it; lines added now must match the current product master. The
    * store/route details stay as saved unless the bill is moved to another store.
+   * Only today's bills can be edited; earlier bills can only be marked invalid.
    */
   async update(id: EntityId, input: BillDraftInput, expectedVersion: number): Promise<Bill> {
     assertCan(this.context.getActor(), 'bill:update');
     const current = await this.get(id);
-    if (current.status !== 'finalized') {
-      throw new AppError('VALIDATION', { userMessage: 'Only finalized bills can be edited.' });
+    if (!isBillEditable(current, this.today())) {
+      throw new AppError('VALIDATION', {
+        userMessage: current.status === 'finalized' ? BILL_RULE_MESSAGES.editTodayOnly : 'Invalid bills cannot be edited.',
+      });
     }
+    if (input.billDate !== current.billDate) throw validationError({ billDate: BILL_RULE_MESSAGES.dateLocked });
     const sameStore = input.customerId === current.customerId && input.routeId === current.routeId;
     const { route, customer } = await this.resolveParties(input, { allowInactive: sameStore });
     await this.assertCatalogCurrent(input);
@@ -175,14 +187,19 @@ export class BillService {
     return this.bills.update(id, changes, { expectedVersion });
   }
 
-  /** Soft-deletes a bill. It stays readable in Past Bills with status "cancelled". */
-  async cancel(id: EntityId, reason: string, expectedVersion: number): Promise<Bill> {
+  /**
+   * Marks a bill (from any date) invalid, with a reason. It stays on record and
+   * readable in Past Bills, keeps its number, and is excluded from sales and
+   * reports. This is how a bill from an earlier day is "corrected": mark it
+   * invalid, then create a new bill today. Stored as status `cancelled`.
+   */
+  async markInvalid(id: EntityId, reason: string, expectedVersion: number): Promise<Bill> {
     const actor = this.context.getActor();
     assertCan(actor, 'bill:cancel');
     const trimmed = reason.trim();
-    if (!trimmed) throw validationError({ reason: 'Enter a reason for cancelling this bill' });
+    if (!trimmed) throw validationError({ reason: 'Enter the reason this bill is invalid' });
     const current = await this.get(id);
-    if (current.status === 'cancelled') throw new AppError('VALIDATION', { userMessage: 'This bill is already cancelled.' });
+    if (!canMarkInvalid(current)) throw new AppError('VALIDATION', { userMessage: 'This bill is already marked invalid.' });
     return this.bills.update(
       id,
       {
@@ -194,6 +211,10 @@ export class BillService {
       },
       { expectedVersion },
     );
+  }
+
+  private assertDatedToday(input: BillDraftInput) {
+    if (input.billDate !== this.today()) throw validationError({ billDate: BILL_RULE_MESSAGES.createToday });
   }
 
   /**

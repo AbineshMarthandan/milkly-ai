@@ -25,7 +25,9 @@ const ConfirmContext = createContext<ConfirmFn | null>(null);
 
 /** Promise-based confirmation dialogs: `if (await confirm({...})) …`. */
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  // The last options stay set after closing so the dialog keeps its content while it fades out.
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
+  const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [error, setError] = useState<string>();
   const resolver = useRef<((result: ConfirmResult) => void) | null>(null);
@@ -38,6 +40,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         setText('');
         setError(undefined);
         setOptions(next);
+        setOpen(true);
       }),
     [],
   ) as ConfirmFn;
@@ -45,7 +48,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const close = (result: ConfirmResult) => {
     resolver.current?.(result);
     resolver.current = null;
-    setOptions(null);
+    setOpen(false);
   };
 
   const accept = () => {
@@ -65,7 +68,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       <Modal
-        open={options !== null}
+        open={open}
         onClose={() => close(false)}
         size="sm"
         title={

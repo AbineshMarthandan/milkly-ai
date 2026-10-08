@@ -2,26 +2,41 @@ import { ArrowLeft } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router';
 import { flattenBill, quantitiesFromBill } from '@/domain/services/billing/billDocument';
+import { BILL_RULE_MESSAGES, canMarkInvalid, isBillEditable } from '@/domain/services/billing/billRules';
+import { toLocalIsoDate } from '@/domain/services/dates';
 import { Button } from '@/components/common/Button';
 import { EmptyState, ErrorState, FullPageSpinner } from '@/components/common/Feedback';
 import { PageHeader } from '@/components/common/Layout';
-import { useCurrentUser } from '@/hooks/useSession';
+import { useCan, useCurrentUser } from '@/hooks/useSession';
 import { formatDate } from '@/utils/format';
+import { useMarkInvalid } from '../pastBills/usePastBills';
 import { BillEditor } from './BillEditor';
 import { useBillDraftStore, useDraft } from './billDraftStore';
 import { useBill } from './useBilling';
 
-/** Edits a finalized bill (Super Admin / Tech Admin). Existing lines keep their saved prices. */
+/**
+ * Edits one of today's bills (Super Admin / Tech Admin). Existing lines keep
+ * their saved prices. Bills from earlier days cannot be edited — they can only
+ * be marked invalid and re-billed today.
+ */
 export default function EditBillPage() {
   const { billId } = useParams();
   const user = useCurrentUser();
+  const can = useCan();
   const bill = useBill(billId);
+  const { markInvalid, marking } = useMarkInvalid();
   const draftKey = `${user?._id ?? 'anonymous'}:edit:${billId}`;
   const draft = useDraft(draftKey);
+  const editable = bill.data ? isBillEditable(bill.data, toLocalIsoDate()) : false;
 
   useEffect(() => {
     const loaded = bill.data;
-    if (!loaded || loaded.status !== 'finalized') return;
+    if (!loaded) return;
+    if (!isBillEditable(loaded, toLocalIsoDate())) {
+      // An edit left open since an earlier day must not linger.
+      useBillDraftStore.getState().discard(draftKey);
+      return;
+    }
     const existing = useBillDraftStore.getState().drafts[draftKey];
     // Reuse an in-progress edit only if it was started from this exact version.
     const stale = !existing?.editing || existing.editing.version !== loaded.version;
@@ -41,16 +56,24 @@ export default function EditBillPage() {
 
   if (bill.isLoading) return <FullPageSpinner label="Loading bill…" />;
   if (bill.error) return <ErrorState error={bill.error} onRetry={() => void bill.refetch()} />;
-  if (bill.data && bill.data.status !== 'finalized') {
+  if (bill.data && !editable) {
+    const data = bill.data;
     return (
       <EmptyState
         className="py-24"
-        title="This bill cannot be edited"
-        description="Cancelled bills are kept for the record and cannot be changed."
+        title="This bill can’t be edited"
+        description={data.status === 'finalized' ? BILL_RULE_MESSAGES.editTodayOnly : 'Invalid bills are kept for the record and can’t be changed.'}
         action={
-          <Link to={`/billing/history/${billId}`}>
-            <Button variant="secondary">View bill</Button>
-          </Link>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link to={`/billing/history/${billId}`}>
+              <Button variant="secondary">View bill</Button>
+            </Link>
+            {canMarkInvalid(data) && can('bill:cancel') && (
+              <Button variant="danger" loading={marking} onClick={() => void markInvalid(data)}>
+                Mark as invalid
+              </Button>
+            )}
+          </div>
         }
       />
     );

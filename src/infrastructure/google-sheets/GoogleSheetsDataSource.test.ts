@@ -131,7 +131,7 @@ describe('GoogleSheetsDataSource (against a fake Sheets API)', () => {
     ]);
 
     // Cancel = soft delete; bill stays readable, numbers never reused.
-    const cancelled = await services.bills.cancel(second._id, 'Wrong store', second.version);
+    const cancelled = await services.bills.markInvalid(second._id, 'Wrong store', second.version);
     expect(cancelled).toMatchObject({ status: 'cancelled', isActive: false, cancelReason: 'Wrong store' });
     expect(await ds.bills.count()).toBe(2);
     const report = await services.reports.generateSalesReport({ preset: 'today', from: today, to: today, label: 'Today' });

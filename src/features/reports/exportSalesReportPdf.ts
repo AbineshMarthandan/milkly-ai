@@ -264,7 +264,7 @@ export function buildSalesReportPdf(report: SalesReport, settings: AppSettings, 
   const pages = doc.getNumberOfPages();
   for (let page = 1; page <= pages; page += 1) {
     doc.setPage(page);
-    text('Profit = sales - purchase cost recorded on each saved bill. Cancelled bills are excluded.', PAGE_MARGIN, pageHeight - 8, { size: 7, color: MUTED });
+    text('Profit = sales - purchase cost recorded on each saved bill. Invalid bills are excluded.', PAGE_MARGIN, pageHeight - 8, { size: 7, color: MUTED });
     text(`Page ${page} of ${pages}`, pageWidth - PAGE_MARGIN, pageHeight - 8, { size: 7, color: MUTED, align: 'right' });
   }
 

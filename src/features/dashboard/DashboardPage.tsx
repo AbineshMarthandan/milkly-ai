@@ -75,7 +75,7 @@ export default function DashboardPage() {
           <StatTile emphasis label="Today’s sales" icon={Wallet} loading={bills.isLoading} value={money(stats?.todaySales ?? 0)} hint={`${stats?.todayCount ?? 0} bills today`} />
           <StatTile label="Today’s bills" icon={Receipt} loading={bills.isLoading} value={formatNumber(stats?.todayCount ?? 0)} to="/billing/history" />
           <StatTile label="Sales this month" icon={TrendingUp} loading={bills.isLoading} value={money(stats?.monthSales ?? 0)} hint={`${stats?.monthCount ?? 0} bills`} />
-          <StatTile label="Total historical bills" icon={Receipt} loading={bills.isLoading} value={formatNumber(stats?.totalBills ?? 0)} hint="All time, including cancelled" />
+          <StatTile label="Total historical bills" icon={Receipt} loading={bills.isLoading} value={formatNumber(stats?.totalBills ?? 0)} hint="All time, including invalid" />
         </div>
       )}
 

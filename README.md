@@ -23,7 +23,11 @@ server. The data layer sits behind repository interfaces, so it can move to Mong
   - "Repeat last bill" copies a store's previous quantities, and after a save the screen moves to the next store on the route.
 - **Save / Print / Save & Print / Cancel**: printing a draft never saves it and never assigns a bill number.
 - **Thermal printing**: 80 mm and 58 mm receipts sized exactly to their content (A4/A5 invoices are also available).
-- **Past Bills**: date range, route, customer, vendor, status and bill-number search. Each bill can be viewed, reprinted, edited (Super Admin and above) or cancelled.
+- **Bill rules**: new bills are always dated today, and a store can have several bills on the same day.
+  Today's bills can be edited any number of times. Bills from earlier days are read-only: to correct one,
+  mark it as invalid with a reason, then use *Re-bill today* to create a new bill with the same quantities at today's prices.
+- **Past Bills**: date range, route, customer, vendor, status (Valid / Invalid) and bill-number search. Each bill can be viewed, reprinted,
+  edited (today's bills, Super Admin and above) or marked invalid.
 - **Dashboard**: counts, today's and this month's sales, a 14-day chart, top vendors and products.
 - **Sales & profit report**: Today, 1 Week, 1 Month or a custom range. Shows each vendor → category → product with charts, and downloads as a PDF.
 - **Roles**: Tech Admin, Super Admin, Admin ([matrix](docs/PERMISSIONS.md)), enforced in routes, menus, buttons and services.

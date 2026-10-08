@@ -89,7 +89,7 @@ only place a data source is constructed is `src/app/store/sessionManager.ts`.
 | Lost updates (two people editing the same record) | Every document has `version`. Writes re-read the row and reject with `CONCURRENT_UPDATE` if it changed. | Read-then-write is not atomic (sub-second window). |
 | Row addressing | Rows are located by `_id` (fresh read of the `_id` column) before every write. Row numbers are never used as identity. | — |
 | Partial bill writes | Lines are appended first, the header last ("commit record"). Edits append a new line revision and switch `itemsRevision`. | Failed or retried saves can leave unreferenced line rows; they are never read. |
-| Hard deletes | None. Everything is soft-deleted (`isActive: false`); bills are cancelled. | — |
+| Hard deletes | None. Everything is soft-deleted (`isActive: false`); bills are marked invalid. | — |
 
 `src/infrastructure/google-sheets/concurrency.test.ts` exercises this against a
 fake Sheets API with random network latency: four cashiers saving back-to-back
@@ -153,4 +153,6 @@ Route → Customer → catalogue (vendor → category → product, by priority)
 ```
 
 Drafts live only on the device (Zustand, persisted per user). Printing never
-saves. Only finalized and cancelled bills are ever stored or listed.
+saves. Only finalized (valid) and cancelled (invalid) bills are ever stored or listed.
+New bills are dated today; only today's bills can be edited, and earlier bills
+can only be marked invalid (see *Bill lifecycle* in [DATA_MODEL.md](DATA_MODEL.md)).

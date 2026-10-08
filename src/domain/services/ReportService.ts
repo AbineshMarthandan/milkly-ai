@@ -10,7 +10,7 @@ export class ReportService {
     private readonly context: ServiceContext,
   ) {}
 
-  /** Sales & profit for finalized bills in the period (cancelled bills are excluded). */
+  /** Sales & profit for finalized bills in the period (bills marked invalid are excluded). */
   async generateSalesReport(period: ReportPeriod): Promise<SalesReport> {
     assertCan(this.context.getActor(), 'report:view');
     const problem = validateReportRange(period.from, period.to);

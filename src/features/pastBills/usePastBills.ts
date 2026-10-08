@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { toAppError } from '@/domain/errors/AppError';
 import type { BillHeader, BillStatus } from '@/domain/models';
 import { queryKeys } from '@/constants/queryKeys';
 import { usePrintBill } from '@/components/billing/PrintProvider';
 import { useConfirm } from '@/components/modals/ConfirmProvider';
-import { useServices } from '@/hooks/useSession';
+import { usePermission, useServices } from '@/hooks/useSession';
 
 export function useBillList(query: { dateFrom: string; dateTo: string; statuses: BillStatus[] }) {
   const services = useServices();
@@ -37,34 +38,53 @@ export function usePrintSavedBill() {
   return { printById, loadingId };
 }
 
-/** Soft-deletes a bill after asking for a reason. It stays visible as "Cancelled". */
-export function useCancelBill() {
+/**
+ * Marks a bill invalid after asking for a reason. It stays on record (shown as
+ * "Invalid"), keeps its number and is excluded from sales and reports. This is
+ * also how a bill from an earlier day is corrected: mark it invalid, then
+ * re-bill the store today (offered right after).
+ */
+export function useMarkInvalid() {
   const services = useServices();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
+  const navigate = useNavigate();
+  const canCreate = usePermission('bill:create');
   const mutation = useMutation({
     mutationFn: ({ bill, reason }: { bill: Pick<BillHeader, '_id' | 'version'>; reason: string }) =>
-      services.bills.cancel(bill._id, reason, bill.version),
+      services.bills.markInvalid(bill._id, reason, bill.version),
     onSuccess: (bill) => {
       queryClient.setQueryData(queryKeys.bill(bill._id), bill);
       void queryClient.invalidateQueries({ queryKey: queryKeys.bills });
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
       void queryClient.invalidateQueries({ queryKey: ['reports'] });
-      toast.success(`Bill ${bill.billNumber} cancelled`);
+      toast.success(`Bill ${bill.billNumber} marked invalid`, {
+        description: canCreate ? 'Need a corrected bill? Create a new one for this store today.' : undefined,
+        action: canCreate
+          ? {
+              label: 'Re-bill today',
+              onClick: () =>
+                navigate(
+                  `/billing/new?route=${encodeURIComponent(bill.routeId)}&customer=${encodeURIComponent(bill.customerId)}&copy=${encodeURIComponent(bill._id)}`,
+                ),
+            }
+          : undefined,
+        duration: 10_000,
+      });
     },
   });
-  const cancelBill = async (bill: Pick<BillHeader, '_id' | 'version' | 'billNumber' | 'grandTotal'>) => {
+  const markInvalid = async (bill: Pick<BillHeader, '_id' | 'version' | 'billNumber' | 'grandTotal'>) => {
     const reason = await confirm({
-      title: `Cancel bill ${bill.billNumber}?`,
+      title: `Mark bill ${bill.billNumber} as invalid?`,
       tone: 'danger',
-      confirmLabel: 'Cancel bill',
+      confirmLabel: 'Mark as invalid',
       cancelLabel: 'Keep bill',
       description:
-        'The bill is kept for the record with status “Cancelled” and excluded from sales and reports. Its number is never reused. This cannot be undone.',
-      input: { label: 'Reason', placeholder: 'e.g. Entered for the wrong store', required: true },
+        'The bill stays on record marked “Invalid” with your reason, and is excluded from sales and reports. Its number is never reused. This cannot be undone. To correct it, create a new bill today.',
+      input: { label: 'Reason', placeholder: 'e.g. Wrong quantities entered', required: true },
     });
     if (reason === false) return;
     await mutation.mutateAsync({ bill, reason }).catch(() => undefined);
   };
-  return { cancelBill, cancelling: mutation.isPending };
+  return { markInvalid, marking: mutation.isPending };
 }

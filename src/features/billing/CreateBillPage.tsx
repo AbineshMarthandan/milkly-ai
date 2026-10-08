@@ -1,14 +1,19 @@
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router';
+import { toast } from 'sonner';
+import { toAppError } from '@/domain/errors/AppError';
+import { quantitiesFromBill } from '@/domain/services/billing/billDocument';
+import { toLocalIsoDate } from '@/domain/services/dates';
 import { PageHeader } from '@/components/common/Layout';
 import { FullPageSpinner } from '@/components/common/Feedback';
 import { useConfirm } from '@/components/modals/ConfirmProvider';
-import { useCurrentUser } from '@/hooks/useSession';
+import { useCurrentUser, useServices } from '@/hooks/useSession';
 import { BillEditor } from './BillEditor';
 import { useBillDraftStore, useDraft } from './billDraftStore';
 
 export default function CreateBillPage() {
   const user = useCurrentUser();
+  const services = useServices();
   const confirm = useConfirm();
   const [params, setParams] = useSearchParams();
   // One draft per user on this device, restored after a refresh.
@@ -16,21 +21,28 @@ export default function CreateBillPage() {
   const draft = useDraft(draftKey);
 
   useEffect(() => {
-    useBillDraftStore.getState().ensure(draftKey);
+    const store = useBillDraftStore.getState();
+    store.ensure(draftKey);
+    // New bills are always dated today, even when a draft from an earlier day is restored.
+    const today = toLocalIsoDate();
+    if (store.drafts[draftKey]?.billDate !== today) store.update(draftKey, { billDate: today });
   }, [draftKey]);
 
-  // "Create bill" links from route folders and store cards: ?route=…&customer=…
+  // Links from store cards / route folders: ?route=…&customer=…
+  // "Re-bill today" from an invalid bill adds &copy=<billId> to copy its quantities.
   const routeParam = params.get('route');
   const customerParam = params.get('customer');
+  const copyParam = params.get('copy');
   useEffect(() => {
     if (!routeParam) return;
     let cancelled = false;
     void (async () => {
       const store = useBillDraftStore.getState();
       const current = store.drafts[draftKey];
-      const switching = current && current.customerId !== customerParam && Object.keys(current.quantities).length > 0;
+      const hasItems = current && Object.keys(current.quantities).length > 0;
+      const replacing = hasItems && (current.customerId !== customerParam || Boolean(copyParam));
       const ok =
-        !switching ||
+        !replacing ||
         (await confirm({
           title: 'Start a new bill?',
           description: 'You have an unsaved bill with quantities entered. It will be cleared.',
@@ -38,20 +50,35 @@ export default function CreateBillPage() {
           tone: 'danger',
         }));
       if (cancelled) return;
-      if (ok) store.update(draftKey, { routeId: routeParam, customerId: customerParam, ...(switching ? { quantities: {}, notes: '' } : {}) });
+      if (ok) {
+        store.update(draftKey, { routeId: routeParam, customerId: customerParam, ...(replacing ? { quantities: {}, notes: '' } : {}) });
+        if (copyParam) {
+          try {
+            const source = await services.bills.get(copyParam);
+            if (cancelled) return;
+            const quantities = quantitiesFromBill(source.vendors);
+            store.update(draftKey, { quantities, notes: '' });
+            toast.success(`Copied ${Object.keys(quantities).length} items from ${source.billNumber}`, {
+              description: 'Today’s prices apply. Check the quantities, then save.',
+            });
+          } catch (error) {
+            toast.error(toAppError(error).userMessage);
+          }
+        }
+      }
       setParams({}, { replace: true });
     })();
     return () => {
       cancelled = true;
     };
-  }, [routeParam, customerParam, draftKey, confirm, setParams]);
+  }, [routeParam, customerParam, copyParam, draftKey, confirm, setParams, services]);
 
   return (
     <>
       <PageHeader
         eyebrow="Billing"
         title="Create bill"
-        description="Pick the route and store, enter quantities, then save. Vendors and categories follow their priority order."
+        description="Bills are dated today. Pick the route and store, enter quantities, then save — a store can have several bills in a day."
       />
       {draft ? <BillEditor draftKey={draftKey} mode="create" /> : <FullPageSpinner />}
     </>

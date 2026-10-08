@@ -49,7 +49,7 @@ export function ThermalReceipt({ bill, settings, roll }: ThermalReceiptProps) {
       <Rule />
       {(isDraft || isCancelled) && (
         <div className="my-1 border border-black py-0.5 text-center font-bold uppercase">
-          {isDraft ? '*** Draft — not saved ***' : '*** Cancelled ***'}
+          {isDraft ? '*** Draft — not saved ***' : '*** Invalid bill ***'}
         </div>
       )}
       <Row left="Bill No" right={<b>{isDraft ? '—' : bill.billNumber}</b>} />

@@ -76,7 +76,7 @@ export default function ReportsPage() {
       <PageHeader
         eyebrow="Reports"
         title="Sales & profit"
-        description="From saved bills only (cancelled bills excluded). Profit uses the purchase price recorded on each bill line."
+        description="From valid saved bills only (invalid bills excluded). Profit uses the purchase price recorded on each bill line."
         actions={
           <Button icon={<Download className="size-4" />} onClick={() => void downloadPdf()} loading={downloading} disabled={!data || !showingCurrent || data.billCount === 0}>
             Download PDF

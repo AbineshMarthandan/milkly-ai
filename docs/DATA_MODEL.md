@@ -128,15 +128,35 @@ bills always use the master data as it is now.
   `STALE_DATA`, refreshes the screen, and asks the user to review.
 * **Drafts** that still hold quantities for an item that is no longer available
   show a warning banner, and those items are never billed.
-* **Editing a saved bill** keeps its existing lines exactly as saved (names,
-  order, prices), and keeps the store/route details unless the bill is moved to
-  another store. Lines added during the edit use current data and are checked
-  like a new bill.
+* **Editing a saved bill** (only possible on the day it was billed, see below)
+  keeps its existing lines exactly as saved (names, order, prices), and keeps the
+  store/route details unless the bill is moved to another store. Lines added
+  during the edit use current data and are checked like a new bill.
 * **Past Bills filters** still list deleted vendors, routes and stores (marked
   "deleted") so their history stays searchable.
 
 `src/infrastructure/google-sheets/history.test.ts` verifies all of the above
 against the Google Sheets implementation.
+
+### Bill lifecycle
+
+| Stored `status` | Shown as | Meaning |
+| --- | --- | --- |
+| `finalized` | Valid | A saved bill. Counts in the dashboard and reports. |
+| `cancelled` | Invalid | Marked invalid with a reason (`cancelReason`, `cancelledAt`, `cancelledBy`). Kept forever, listed in Past Bills, excluded from sales and reports. |
+
+Rules (enforced in `BillService`, defined in `src/domain/services/billing/billRules.ts`):
+
+* **New bills are dated today.** Bills cannot be created for an earlier (or later) date.
+* **Several bills per store per day** are allowed; each gets its own bill number.
+* **Today's bills can be edited any number of times.** Each edit bumps `version`.
+  The bill date can never be changed.
+* **Bills from earlier days are read-only.** "Today" is the device's local date.
+  To correct one, mark it as invalid (a reason is required); it cannot be edited
+  or marked invalid again afterwards. *Re-bill today* then opens a new bill for
+  the same store with the same quantities at today's prices.
+
+`src/infrastructure/google-sheets/billRules.test.ts` verifies these rules.
 
 ## Ordering
 

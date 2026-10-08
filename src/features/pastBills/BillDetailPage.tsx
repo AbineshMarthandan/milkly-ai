@@ -1,7 +1,9 @@
-import { ArrowLeft, Ban, Pencil, Printer } from 'lucide-react';
+import { ArrowLeft, Ban, FilePlus2, Info, Pencil, Printer } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { DEFAULT_APP_SETTINGS, PAPER_SIZE_LABELS, isThermal } from '@/domain/models/settings';
+import { BILL_RULE_MESSAGES, canMarkInvalid, isBillEditable } from '@/domain/services/billing/billRules';
+import { toLocalIsoDate } from '@/domain/services/dates';
 import { Button } from '@/components/common/Button';
 import { ErrorState, FullPageSpinner } from '@/components/common/Feedback';
 import { Card, CardHeader, PageHeader } from '@/components/common/Layout';
@@ -14,7 +16,7 @@ import { cn } from '@/utils/cn';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { useBill } from '../billing/useBilling';
 import { BillStatusBadge } from './PastBillsPage';
-import { useCancelBill } from './usePastBills';
+import { useMarkInvalid } from './usePastBills';
 
 function Meta({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -35,13 +37,15 @@ export default function BillDetailPage() {
   const print = usePrintBill();
   const bill = useBill(billId);
   const { data: settingsDoc } = useAppSettings();
-  const { cancelBill, cancelling } = useCancelBill();
+  const { markInvalid, marking } = useMarkInvalid();
   const settings = settingsDoc?.data ?? DEFAULT_APP_SETTINGS;
 
   if (bill.isLoading) return <FullPageSpinner label="Loading bill…" />;
   if (bill.error || !bill.data) return <ErrorState error={bill.error} onRetry={() => void bill.refetch()} />;
   const data = bill.data;
   const thermal = isThermal(settings.paperSize);
+  const editable = isBillEditable(data, toLocalIsoDate());
+  const rebillLink = `/billing/new?route=${encodeURIComponent(data.routeId)}&customer=${encodeURIComponent(data.customerId)}&copy=${encodeURIComponent(data._id)}`;
 
   return (
     <>
@@ -62,19 +66,30 @@ export default function BillDetailPage() {
             <Button variant="secondary" icon={<Printer className="size-4" />} onClick={() => print(data)}>
               Print
             </Button>
-            {data.status === 'finalized' && can('bill:update') && (
+            {editable && can('bill:update') && (
               <Button variant="secondary" icon={<Pencil className="size-4" />} onClick={() => navigate(`/billing/edit/${data._id}`)}>
                 Edit
               </Button>
             )}
-            {data.status === 'finalized' && can('bill:cancel') && (
-              <Button variant="danger" icon={<Ban className="size-4" />} loading={cancelling} onClick={() => void cancelBill(data)}>
-                Cancel bill
+            {data.status === 'cancelled' && can('bill:create') && (
+              <Button variant="secondary" icon={<FilePlus2 className="size-4" />} onClick={() => navigate(rebillLink)}>
+                Re-bill today
+              </Button>
+            )}
+            {canMarkInvalid(data) && can('bill:cancel') && (
+              <Button variant="danger" icon={<Ban className="size-4" />} loading={marking} onClick={() => void markInvalid(data)}>
+                Mark as invalid
               </Button>
             )}
           </>
         }
       />
+      {data.status === 'finalized' && !editable && can('bill:update') && (
+        <p className="-mt-2 mb-4 flex items-start gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600">
+          <Info className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />
+          {BILL_RULE_MESSAGES.editTodayOnly}
+        </p>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card className="overflow-x-auto bg-slate-100/70 p-4 sm:p-6">
@@ -116,10 +131,10 @@ export default function BillDetailPage() {
                 </Meta>
               )}
               {data.status === 'cancelled' && (
-                <Meta label="Cancelled">
+                <Meta label="Marked invalid">
                   {userName(data.cancelledBy)}
                   <div className="text-xs text-slate-500">{formatDateTime(data.cancelledAt)}</div>
-                  <div className="mt-1 text-xs text-rose-700">{data.cancelReason}</div>
+                  <div className="mt-1 text-xs text-rose-700">Reason: {data.cancelReason}</div>
                 </Meta>
               )}
               <Meta label="Bill ID">

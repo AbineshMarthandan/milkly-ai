@@ -2,6 +2,7 @@ import { Ban, Eye, FilePlus2, Pencil, Printer, Receipt } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { BillHeader, BillStatus } from '@/domain/models';
+import { canMarkInvalid, isBillEditable } from '@/domain/services/billing/billRules';
 import { addDays, startOfMonth, toLocalIsoDate } from '@/domain/services/dates';
 import { sumMoney } from '@/domain/services/money';
 import { sortByPriority } from '@/domain/services/ordering';
@@ -17,7 +18,7 @@ import { cn } from '@/utils/cn';
 import { formatDate } from '@/utils/format';
 import { ExplorerToolbar } from '../shared/MasterComponents';
 import { useMasterList } from '../shared/masterData';
-import { useBillList, useCancelBill, usePrintSavedBill } from './usePastBills';
+import { useBillList, useMarkInvalid, usePrintSavedBill } from './usePastBills';
 
 type StatusFilter = 'finalized' | 'cancelled' | 'all';
 const STATUS_QUERY: Record<StatusFilter, BillStatus[]> = {
@@ -30,9 +31,9 @@ type RangePreset = 'today' | '7d' | '30d' | 'month' | 'custom';
 const PAGE = 36;
 
 export function BillStatusBadge({ status }: { status: BillStatus }) {
-  if (status === 'cancelled') return <Badge tone="red">Cancelled</Badge>;
+  if (status === 'cancelled') return <Badge tone="red">Invalid</Badge>;
   if (status === 'draft') return <Badge tone="amber">Draft</Badge>;
-  return <Badge tone="green">Finalized</Badge>;
+  return <Badge tone="green">Valid</Badge>;
 }
 
 /** Saved bills only, as cards. Drafts — printed or not — never appear here. */
@@ -56,7 +57,7 @@ export default function PastBillsPage() {
   const { data: customers = [] } = useMasterList('customers');
   const { data: vendors = [] } = useMasterList('vendors');
   const { printById, loadingId } = usePrintSavedBill();
-  const { cancelBill } = useCancelBill();
+  const { markInvalid } = useMarkInvalid();
 
   const applyPreset = (next: RangePreset) => {
     setPreset(next);
@@ -101,11 +102,12 @@ export default function PastBillsPage() {
       { label: 'View', icon: Eye, onSelect: () => navigate(`/billing/history/${bill._id}`) },
       { label: loadingId === bill._id ? 'Preparing…' : 'Print', icon: Printer, onSelect: () => void printById(bill._id) },
     ];
-    if (bill.status === 'finalized' && can('bill:update')) {
+    // Only today's bills can be edited; any valid bill can be marked invalid.
+    if (isBillEditable(bill, today) && can('bill:update')) {
       actions.push({ label: 'Edit', icon: Pencil, onSelect: () => navigate(`/billing/edit/${bill._id}`) });
     }
-    if (bill.status === 'finalized' && can('bill:cancel')) {
-      actions.push({ label: 'Cancel bill', icon: Ban, tone: 'danger', onSelect: () => void cancelBill(bill) });
+    if (canMarkInvalid(bill) && can('bill:cancel')) {
+      actions.push({ label: 'Mark as invalid', icon: Ban, tone: 'danger', onSelect: () => void markInvalid(bill) });
     }
     return actions;
   };
@@ -171,8 +173,8 @@ export default function PastBillsPage() {
           <label className="text-xs font-medium text-slate-500">
             Status
             <Select value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)} className="mt-1 w-36">
-              <option value="finalized">Finalized</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="finalized">Valid</option>
+              <option value="cancelled">Invalid</option>
               <option value="all">All</option>
             </Select>
           </label>
@@ -249,7 +251,7 @@ export default function PastBillsPage() {
                       ))}
                     </span>
                   </div>
-                  {cancelled && bill.cancelReason && <p className="mt-2 line-clamp-1 text-xs text-rose-700">{bill.cancelReason}</p>}
+                  {cancelled && bill.cancelReason && <p className="mt-2 line-clamp-1 text-xs text-rose-700">Reason: {bill.cancelReason}</p>}
                 </ItemCard>
               );
             })}

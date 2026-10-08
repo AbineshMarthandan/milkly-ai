@@ -1,11 +1,12 @@
-import { CalendarClock, ChevronLeft, ChevronRight, History, ListChecks, MapPinned, Search, Store } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, History, ListChecks, MapPinned, Receipt, Search, Store } from 'lucide-react';
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { isAppError, toAppError } from '@/domain/errors/AppError';
 import type { Bill, Customer } from '@/domain/models';
 import type { BillDraftInput } from '@/domain/services';
 import { quantitiesFromBill } from '@/domain/services/billing/billDocument';
+import { BILL_RULE_MESSAGES } from '@/domain/services/billing/billRules';
 import { indexCatalog } from '@/domain/services/billing/catalog';
 import { toLocalIsoDate } from '@/domain/services/dates';
 import { sortByPriority } from '@/domain/services/ordering';
@@ -21,6 +22,7 @@ import { useServices } from '@/hooks/useSession';
 import { cn } from '@/utils/cn';
 import { formatDate } from '@/utils/format';
 import { sessionManager } from '@/app/store/sessionManager';
+import { useBillList } from '../pastBills/usePastBills';
 import { useMasterList } from '../shared/masterData';
 import { useBillDraftStore, useDraft } from './billDraftStore';
 import { BillSummary } from './BillSummary';
@@ -63,6 +65,11 @@ export function BillEditor({ draftKey, mode }: BillEditorProps) {
   const { catalog, isLoading, error, refetch } = useBillingCatalog(customer, draft.editing?.lockedLines);
   const { vendors: billVendors, totals } = useDraftTotals(catalog, draft.quantities);
   const { data: allProducts = [] } = useMasterList('products');
+
+  // Several bills per store per day are allowed; show the ones already saved today.
+  const todayIso = toLocalIsoDate();
+  const { data: todaysBills = [] } = useBillList({ dateFrom: todayIso, dateTo: todayIso, statuses: ['finalized'] });
+  const billedToday = todaysBills.filter((bill) => bill.customerId === draft.customerId);
 
   // Quantities entered for products that are no longer on this store's list
   // (deleted, or under a deleted vendor/category) are never billed — say so.
@@ -132,14 +139,15 @@ export function BillEditor({ draftKey, mode }: BillEditorProps) {
 
   const buildInput = useCallback(
     (): BillDraftInput => ({
-      billDate: draft.billDate,
+      // New bills are always dated today (a draft restored from an earlier day included).
+      billDate: mode === 'edit' ? draft.billDate : today,
       routeId: draft.routeId ?? '',
       customerId: draft.customerId ?? '',
       notes: draft.notes,
       catalog,
       quantities: draft.quantities,
     }),
-    [draft, catalog],
+    [draft, catalog, mode, today],
   );
 
   /** After a new bill is saved, move on to the next store on the route. */
@@ -303,21 +311,13 @@ export function BillEditor({ draftKey, mode }: BillEditorProps) {
                 </div>
               )}
             </Field>
-            <Field
-              label="Bill date"
-              required
-              hint={
-                draft.billDate !== today ? (
-                  <span className="inline-flex items-center gap-1 text-amber-700">
-                    <CalendarClock className="size-3.5" /> Not today
-                  </span>
-                ) : undefined
-              }
-            >
-              {(props) => (
-                <Input {...props} type="date" value={draft.billDate} onChange={(event) => event.target.value && update(draftKey, { billDate: event.target.value })} className="md:w-44" />
-              )}
-            </Field>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-medium text-slate-700">Bill date</span>
+              <div className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 md:w-44" title={BILL_RULE_MESSAGES.createToday}>
+                <CalendarDays className="size-4 text-slate-400" aria-hidden />
+                {mode === 'edit' ? formatDate(draft.billDate) : `Today, ${formatDate(today)}`}
+              </div>
+            </div>
           </div>
           {customer && (
             <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
@@ -331,6 +331,17 @@ export function BillEditor({ draftKey, mode }: BillEditorProps) {
                   <MapPinned className="size-3.5 text-slate-400" /> Stop {customerIndex + 1} of {routeCustomers.length}
                 </span>
                 <span>Supplies: {suppliedVendors}</span>
+                {mode === 'create' && billedToday.length > 0 && (
+                  <span className="inline-flex flex-wrap items-center gap-1 text-slate-600">
+                    <Receipt className="size-3.5 text-slate-400" aria-hidden />
+                    Already billed today:
+                    {billedToday.map((bill) => (
+                      <Link key={bill._id} to={`/billing/history/${bill._id}`} className="font-mono text-brand-700 hover:underline">
+                        {bill.billNumber} ({money(bill.grandTotal)})
+                      </Link>
+                    ))}
+                  </span>
+                )}
               </div>
               {mode === 'create' && (
                 <Button variant="secondary" size="sm" icon={<History className="size-3.5" />} loading={repeating} onClick={() => void repeatLastBill()}>
