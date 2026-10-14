@@ -1,0 +1,25 @@
+src/features/reports/exportSalesReportPdf.test.ts
+  4f882c683b062e04 3,5-7,11-54,56,58,60
+src/infrastructure/google/GoogleIdentityProvider.test.ts
+  4f882c683b062e04 1-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "e5d82522932e66b82df1153114350808dabfda37",
+  "prompts": {
+    "4f882c683b062e04": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "00e4042d-0536-454b-b061-f4f8c13b4a5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Abinesh M <abimarthandan10@gmail.com>",
+      "messages": [],
+      "total_additions": 116,
+      "total_deletions": 7,
+      "accepted_lines": 116,
+      "overriden_lines": 0
+    }
+  }
+}
