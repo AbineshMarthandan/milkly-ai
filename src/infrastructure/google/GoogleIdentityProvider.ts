@@ -44,6 +44,8 @@ export class GoogleIdentityProvider implements IdentityProvider, AccessTokenSour
   private identity: Identity | null = null;
   private client: google.accounts.oauth2.TokenClient | null = null;
   private pending: { resolve: () => void; reject: (error: unknown) => void } | null = null;
+  /** Set when the user left the Sheets box unticked, so the next attempt shows Google's permission screen again. */
+  private sheetsDeclined = false;
 
   constructor(private readonly clientId: string) {}
 
@@ -109,7 +111,7 @@ export class GoogleIdentityProvider implements IdentityProvider, AccessTokenSour
         this.pending = { resolve, reject };
         // Must run synchronously inside the click handler when `client` is
         // ready, or the browser's popup blocker may stop the Google window.
-        this.client!.requestAccessToken(overrides);
+        this.client!.requestAccessToken(this.sheetsDeclined ? { ...overrides, prompt: 'consent' } : overrides);
       });
     return this.client ? start() : this.prepare().then(start);
   }
@@ -123,13 +125,16 @@ export class GoogleIdentityProvider implements IdentityProvider, AccessTokenSour
       return;
     }
     if (!window.google?.accounts?.oauth2?.hasGrantedAllScopes(response, SHEETS_SCOPE)) {
+      this.sheetsDeclined = true;
       pending.reject(
         new AppError('AUTH_FAILED', {
-          userMessage: 'Please allow access to Google Sheets — the app stores its data in your business spreadsheet.',
+          userMessage:
+            'Google Sheets access was not allowed, and the app keeps its data in your spreadsheet. Sign in again and, on Google’s permission screen, tick “See, edit, create and delete all your Google Sheets spreadsheets”, then press Continue.',
         }),
       );
       return;
     }
+    this.sheetsDeclined = false;
     this.token = { value: response.access_token, expiresAt: Date.now() + response.expires_in * 1000 };
     pending.resolve();
   }
