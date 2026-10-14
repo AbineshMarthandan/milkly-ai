@@ -65,6 +65,19 @@ data is stored only in your browser. Reset it under *Settings → Reset demo dat
 6. Sign in with Google. On an empty sheet the app creates the tabs and makes you the
    first **Tech Admin**. Then add your users under *Administration → Users*.
 
+### Milkly AI's Google setup
+
+The values used for this app's own Google Cloud project (ID `milkly-ai`, Google Sheets API enabled):
+
+| Field | Value |
+| --- | --- |
+| App name | Milkly AI |
+| Support and contact email | milklyai10@gmail.com |
+| Audience | External, left in *Testing* mode (free; no Google review needed) |
+| Test users | milklyai10@gmail.com, abimarthandan10@gmail.com, plus each staff member's Google account (up to 100) |
+| Client type | Web application, named "Milkly AI web" |
+| Authorised JavaScript origins | `http://localhost:5180` and `https://abineshmarthandan.github.io` |
+
 > **Security:** no private keys, service-account keys or client secrets are used
 > or accepted anywhere. The access token stays in memory only. App roles are
 > checked in the browser. Use *Protect admin tabs*, and share the spreadsheet
