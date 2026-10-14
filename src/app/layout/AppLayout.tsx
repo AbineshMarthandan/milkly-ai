@@ -1,5 +1,5 @@
 import { Dialog, DialogBackdrop, DialogPanel, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { ChevronDown, Download, FlaskConical, LogOut, Menu as MenuIcon, Milk, RefreshCw, Sheet, WifiOff, X } from 'lucide-react';
+import { ChevronDown, Download, LogOut, Menu as MenuIcon, Milk, RefreshCw, Sheet, WifiOff, X } from 'lucide-react';
 import { Suspense, useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { toast } from 'sonner';
@@ -116,7 +116,6 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const dataSource = useSessionStore((state) => state.dataSource);
-  const isDemo = dataSource?.kind === 'browser-demo';
   const online = useOnlineStatus();
   const { canInstall, install } = useInstallPrompt();
 
@@ -158,12 +157,6 @@ export function AppLayout() {
               You’re offline. You can keep entering a bill — saving and loading data need a connection.
             </div>
           )}
-          {isDemo && (
-            <div className="flex items-center justify-center gap-2 bg-amber-100 px-4 py-1.5 text-center text-xs text-amber-900">
-              <FlaskConical className="size-3.5 shrink-0" aria-hidden />
-              Demo mode — sample data stored in this browser only. Connect Google Sheets for real use.
-            </div>
-          )}
           <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6">
             <IconButton label="Open menu" className="lg:hidden" onClick={() => setMobileOpen(true)}>
               <MenuIcon className="size-5" />
@@ -171,7 +164,7 @@ export function AppLayout() {
             <div className="flex-1" />
             {dataSource && (
               <span className="hidden items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 md:inline-flex">
-                {isDemo ? <FlaskConical className="size-3.5" /> : <Sheet className="size-3.5 text-emerald-600" />}
+                <Sheet className="size-3.5 text-emerald-600" />
                 {dataSource.label}
               </span>
             )}

@@ -11,7 +11,7 @@ export interface Identity {
 }
 
 export interface IdentityProvider {
-  readonly kind: 'google' | 'demo';
+  readonly kind: 'google';
   /** Interactive sign-in. Must be called from a user gesture (it may open a popup). */
   signIn(options?: { loginHint?: string }): Promise<Identity>;
   /** Re-acquire credentials after expiry. Must be called from a user gesture. */

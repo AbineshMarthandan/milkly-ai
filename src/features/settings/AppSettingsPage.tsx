@@ -1,18 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Printer, RotateCcw } from 'lucide-react';
+import { Printer } from 'lucide-react';
 import { useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import { PAPER_SIZES, PAPER_SIZE_LABELS, isThermal, type AppSettings } from '@/domain/models/settings';
 import { appSettingsSchema, type AppSettingsFormValues } from '@/domain/validation/schemas';
-import { sessionManager } from '@/app/store/sessionManager';
-import { useSessionStore } from '@/app/store/sessionStore';
 import { Button } from '@/components/common/Button';
 import { ErrorState, FullPageSpinner } from '@/components/common/Feedback';
 import { Card, CardHeader, PageHeader } from '@/components/common/Layout';
 import { Field, Input, Select, Textarea } from '@/components/forms/Field';
-import { useConfirm } from '@/components/modals/ConfirmProvider';
 import { queryKeys } from '@/constants/queryKeys';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useServices } from '@/hooks/useSession';
@@ -26,9 +23,7 @@ const FIELDS = ['businessName', 'businessAddress', 'phone', 'taxId', 'invoiceFoo
 export default function AppSettingsPage() {
   const services = useServices();
   const queryClient = useQueryClient();
-  const confirm = useConfirm();
   const settings = useAppSettings();
-  const isDemo = useSessionStore((state) => state.dataSource?.kind === 'browser-demo');
   const form = useForm({ resolver: zodResolver(appSettingsSchema) });
   const { errors, isDirty } = form.formState;
   const paperSize = useWatch({ control: form.control, name: 'paperSize' });
@@ -143,21 +138,6 @@ export default function AppSettingsPage() {
           <Button variant="secondary" onClick={() => settings.data && form.reset(settings.data.data)} disabled={!isDirty || save.isPending}>
             Discard changes
           </Button>
-          {isDemo && (
-            <Button
-              variant="ghost"
-              className="ml-auto"
-              icon={<RotateCcw className="size-4" />}
-              onClick={async () => {
-                if (await confirm({ title: 'Reset demo data?', description: 'All demo changes and bills are replaced with the original sample data.', tone: 'danger', confirmLabel: 'Reset' })) {
-                  await sessionManager.resetDemoData();
-                  toast.success('Demo data restored');
-                }
-              }}
-            >
-              Reset demo data
-            </Button>
-          )}
         </div>
       </form>
     </>

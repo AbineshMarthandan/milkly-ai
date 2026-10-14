@@ -14,11 +14,8 @@ export type SessionStatus =
   | 'needs-initialization'
   | 'authenticated';
 
-export type SessionMode = 'google' | 'demo';
-
 export interface SessionState {
   status: SessionStatus;
-  mode: SessionMode | null;
   connection: ResolvedConnection | null;
   identity: Identity | null;
   user: User | null;
@@ -33,7 +30,6 @@ export interface SessionState {
 
 export const initialSessionState: SessionState = {
   status: 'booting',
-  mode: null,
   connection: null,
   identity: null,
   user: null,
@@ -46,7 +42,7 @@ export const initialSessionState: SessionState = {
 
 /**
  * Client-side session state. Holds object references only in memory: the
- * Google access token lives inside the identity provider and is never put in
- * this store or in browser storage.
+ * Google access token lives inside the identity provider (which also keeps it
+ * in this tab's sessionStorage) and is never put in this store.
  */
 export const useSessionStore = create<SessionState>(() => initialSessionState);

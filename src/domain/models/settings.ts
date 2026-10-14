@@ -80,4 +80,4 @@ export interface GoogleSheetConfig {
 }
 
 /** Where the active connection configuration came from. */
-export type ConfigSource = 'device' | 'runtime-file' | 'build-env' | 'none';
+export type ConfigSource = 'device' | 'runtime-file' | 'build-env' | 'built-in' | 'none';

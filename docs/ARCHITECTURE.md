@@ -17,7 +17,6 @@ Application services            src/domain/services/*      ← business rules, p
 Repository interfaces           src/domain/repositories    ← the persistence boundary
         │
         ├── GoogleSheetsDataSource   src/infrastructure/google-sheets   (production)
-        ├── BrowserDemoDataSource    src/infrastructure/browser-demo    (demo / tests)
         └── MongoDataSource          (future — same interfaces)
 ```
 
@@ -36,7 +35,6 @@ only place a data source is constructed is `src/app/store/sessionManager.ts`.
 | `src/domain/errors` | `AppError` with stable codes and user-safe messages. |
 | `src/infrastructure/google-sheets` | REST client, request batching, row mapper, generic `SheetCollection`, repositories, diagnostics. |
 | `src/infrastructure/google` | Google Identity Services sign-in (OAuth token model). |
-| `src/infrastructure/browser-demo` | localStorage implementation of every repository + seed data. |
 | `src/infrastructure/config` | Resolution of the (public) connection identifiers. |
 | `src/app` | Router, guards, layout, session store/manager, React Query client. |
 | `src/components` | Reusable UI kit: buttons, form controls, combobox, data table, modals/drawers, charts, invoice & thermal receipt. |
@@ -47,9 +45,12 @@ only place a data source is constructed is `src/app/store/sessionManager.ts`.
 * **Sign-in**: Google Identity Services *token model* (`google.accounts.oauth2.initTokenClient`).
   The browser receives a short-lived (~1 h) access token for the
   `spreadsheets` scope plus `openid email profile`. No client secret exists.
-* **Token storage**: memory only (inside `GoogleIdentityProvider`). Never in
-  localStorage, sessionStorage, Zustand or React Query. A page reload requires
-  one click on "Sign in with Google".
+* **Token storage**: in memory (inside `GoogleIdentityProvider`) and in this
+  tab's `sessionStorage`, so a page refresh keeps the user signed in.
+  sessionStorage is per tab, is cleared when the tab closes, and is removed on
+  sign-out or when Google rejects the token. The token expires after about an
+  hour either way. It is never put in localStorage, Zustand or React Query. A
+  new tab, or a refresh after expiry, needs one click on "Sign in with Google".
 * **Expiry**: an expired token surfaces as `AUTH_EXPIRED`; a modal asks the user
   to continue (a user gesture is required to reopen Google's popup). Unsaved
   bill drafts are kept.
@@ -58,7 +59,8 @@ only place a data source is constructed is `src/app/store/sessionManager.ts`.
 * **What is configured, and where**: only *public identifiers* — the OAuth
   Client ID and the spreadsheet ID. Resolution order: device override (set by a
   Tech Admin in *Google Sheets Configuration*) → `/app-config.json` on the
-  web server → `VITE_*` build variables. There is deliberately no field for a
+  web server → `VITE_*` build variables → the built-in Milkly AI values in
+  `src/constants/googleConnection.ts`. There is deliberately no field for a
   private key.
 
 ### Limitations you must know about

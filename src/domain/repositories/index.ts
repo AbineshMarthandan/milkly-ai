@@ -1,7 +1,7 @@
 /**
  * Repository interfaces — the persistence boundary.
  *
- *   React UI → hooks → application services → **these interfaces** → GoogleSheets* | Mongo* | BrowserDemo*
+ *   React UI → hooks → application services → **these interfaces** → GoogleSheets* | Mongo*
  *
  * Contract shared by every implementation:
  * - `create`/`update`/`delete` stamp audit fields (createdAt/By, updatedAt/By) and
@@ -137,7 +137,7 @@ export interface DatabaseAdministration {
   readonly externalUrl?: string;
 }
 
-export type DataSourceKind = 'google-sheets' | 'browser-demo' | 'mongodb';
+export type DataSourceKind = 'google-sheets' | 'mongodb';
 
 /** A complete persistence implementation. Swap this object to change databases. */
 export interface DataSource {

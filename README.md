@@ -34,15 +34,15 @@ server. The data layer sits behind repository interfaces, so it can move to Mong
 - **Google Sheets Configuration** (Tech Admin): connection, *Test connection*,
   validate and repair the sheet structure, and protect the admin tabs.
 
-## Quick start (demo, no Google account needed)
+## Quick start
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:5180 and choose one of the **Try the demo** roles. Demo
-data is stored only in your browser. Reset it under *Settings → Reset demo data*.
+Open http://localhost:5180 and sign in with Google. The app is already connected to
+Milkly AI's Google Sheet (see *Milkly AI's Google setup* below), so there is nothing to configure.
 
 ## Connecting your Google Sheet
 
@@ -55,7 +55,9 @@ data is stored only in your browser. Reset it under *Settings → Reset demo dat
    `http://localhost:5180` and `https://billing.example.com`. You don't need a
    redirect URI, and you don't need the client secret.
 4. Create a **blank Google Sheet** and share it (Editor) with every user's Google account.
-5. Give the app the two **public** identifiers, in any one of these ways:
+5. Give the app the two **public** identifiers. Milkly AI's own values are built into
+   `src/constants/googleConnection.ts`, so the app works without any of the options
+   below. Each option overrides the built-in values:
    - In the app: *Set up Google Sheets* on the sign-in page (or *Google Sheets
      Configuration* once you are a Tech Admin). This is stored for that browser only.
    - At deployment: copy `public/app-config.example.json` to `app-config.json` on the
@@ -79,7 +81,8 @@ The values used for this app's own Google Cloud project (ID `milkly-ai`, Google 
 | Authorised JavaScript origins | `http://localhost:5180` and `https://abineshmarthandan.github.io` |
 
 > **Security:** no private keys, service-account keys or client secrets are used
-> or accepted anywhere. The access token stays in memory only. App roles are
+> or accepted anywhere. The short-lived (~1 h) Google access token is kept in memory and in the current
+> tab's sessionStorage (so a refresh keeps you signed in); it is never put in localStorage. App roles are
 > checked in the browser. Use *Protect admin tabs*, and share the spreadsheet
 > carefully. See [Architecture → Limitations](docs/ARCHITECTURE.md#limitations-you-must-know-about).
 
@@ -124,10 +127,9 @@ the app on every push to `main`.
 1. The repository must be **public** for free GitHub Pages (private repositories
    need a paid plan). The code contains no secrets.
 2. *Settings → Pages → Build and deployment → Source:* **GitHub Actions**.
-3. *Settings → Secrets and variables → Actions → **Variables***. These are public identifiers, not secrets:
-   - `GOOGLE_OAUTH_CLIENT_ID`
-   - `GOOGLE_SPREADSHEET_ID`
-   - optionally `ENABLE_DEMO_MODE` = `true`
+3. Optional: to deploy against a different sheet, set *Settings → Secrets and variables → Actions →
+   **Variables*** `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_SPREADSHEET_ID` (public identifiers, not secrets).
+   Without them the build uses the built-in Milkly AI sheet.
 4. In the OAuth client, add `https://<github-username>.github.io` to
    *Authorised JavaScript origins* (origin only, no path).
 5. Push to `main`. The site appears at `https://<github-username>.github.io/milkly-ai/`.

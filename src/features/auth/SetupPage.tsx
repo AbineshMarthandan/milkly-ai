@@ -42,7 +42,7 @@ export default function SetupPage() {
         <div className="mt-4 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <AlertTriangle className="size-4 shrink-0" />
           <p>
-            A connection is already configured ({connection.source === 'device' ? 'on this browser' : 'by the deployment'}). Changes here
+            A connection is already configured ({connection.source === 'device' ? 'on this browser' : connection.source === 'built-in' ? 'built into the app' : 'by the deployment'}). Changes here
             apply to this browser only. Tech Admins should normally use Settings → Google Sheets Configuration after signing in.
           </p>
         </div>

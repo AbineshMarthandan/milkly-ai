@@ -3,14 +3,8 @@ import { AppError, toAppError } from '@/domain/errors/AppError';
 import type { Actor, GoogleSheetConfig, User } from '@/domain/models';
 import type { DataSource } from '@/domain/repositories';
 import { BootstrapService, SessionService, createServices } from '@/domain/services';
-import { BrowserDemoDataSource, DemoIdentityProvider } from '@/infrastructure/browser-demo/BrowserDemoDataSource';
-import { LocalDatabase } from '@/infrastructure/browser-demo/LocalDatabase';
-import {
-  clearDeviceConnection,
-  isDemoModeEnabled,
-  resolveConnection,
-  saveDeviceConnection,
-} from '@/infrastructure/config/connectionConfig';
+import { useBillDraftStore } from '@/features/billing/billDraftStore';
+import { clearDeviceConnection, resolveConnection, saveDeviceConnection } from '@/infrastructure/config/connectionConfig';
 import { GoogleIdentityProvider } from '@/infrastructure/google/GoogleIdentityProvider';
 import { GoogleSheetsDataSource } from '@/infrastructure/google-sheets/GoogleSheetsDataSource';
 import { SCHEMA_VERSION } from '@/infrastructure/google-sheets/schemas/sheetSchemas';
@@ -21,7 +15,6 @@ import { initialSessionState, useSessionStore } from './sessionStore';
 /** Non-sensitive UI preferences (no tokens, no secrets). */
 const PREFS_KEY = 'milkly.session.v1';
 interface SessionPrefs {
-  mode?: 'google' | 'demo';
   lastEmail?: string;
 }
 
@@ -36,6 +29,22 @@ function readPrefs(): SessionPrefs {
 function writePrefs(prefs: SessionPrefs) {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    /* ignored */
+  }
+}
+
+/**
+ * Clears what the retired browser-only demo left behind: its sample data, its
+ * sign-in hint, and unsaved bill drafts that point at demo products and stores.
+ */
+function removeLegacyDemoData() {
+  try {
+    const usedDemo = localStorage.getItem('milkly.demo.v1') !== null || (JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as { mode?: string }).mode === 'demo';
+    if (!usedDemo) return;
+    localStorage.removeItem('milkly.demo.v1');
+    localStorage.removeItem(PREFS_KEY);
+    useBillDraftStore.setState({ drafts: {} });
   } catch {
     /* ignored */
   }
@@ -61,12 +70,11 @@ function getGoogleProvider(config: GoogleSheetConfig): GoogleIdentityProvider {
   return googleProvider;
 }
 
-function activate(user: User, identity: Identity, provider: IdentityProvider, dataSource: DataSource, mode: 'google' | 'demo') {
+function activate(user: User, identity: Identity, provider: IdentityProvider, dataSource: DataSource) {
   currentActor = toActor(user);
   queryClient.clear();
   useSessionStore.setState({
     status: 'authenticated',
-    mode,
     identity,
     user,
     provider,
@@ -75,10 +83,11 @@ function activate(user: User, identity: Identity, provider: IdentityProvider, da
     error: null,
     reauthRequired: false,
   });
-  writePrefs({ mode, lastEmail: identity.email });
+  writePrefs({ lastEmail: identity.email });
 }
 
-async function completeSignIn(identity: Identity, provider: IdentityProvider, dataSource: DataSource, mode: 'google' | 'demo') {
+/** `recordLogin` is false when a page refresh restores a session, so reloads are not counted as logins. */
+async function completeSignIn(identity: Identity, provider: IdentityProvider, dataSource: DataSource, recordLogin = true) {
   const sessions = new SessionService(dataSource.users);
   let hasUsers: boolean;
   try {
@@ -90,13 +99,22 @@ async function completeSignIn(identity: Identity, provider: IdentityProvider, da
     hasUsers = false;
   }
   if (!hasUsers) {
-    useSessionStore.setState({ status: 'needs-initialization', mode, identity, provider, dataSource, error: null });
+    useSessionStore.setState({ status: 'needs-initialization', identity, provider, dataSource, error: null });
     return;
   }
   const user = await sessions.resolveUser(identity);
   currentActor = toActor(user);
-  await sessions.recordLogin(user);
-  activate(user, identity, provider, dataSource, mode);
+  if (recordLogin) await sessions.recordLogin(user);
+  activate(user, identity, provider, dataSource);
+}
+
+function sheetsDataSource(config: GoogleSheetConfig, provider: GoogleIdentityProvider): GoogleSheetsDataSource {
+  return new GoogleSheetsDataSource({
+    config,
+    tokens: provider,
+    audit: auditContext,
+    identityEmail: () => provider.currentIdentity?.email ?? null,
+  });
 }
 
 function fail(error: unknown) {
@@ -105,15 +123,24 @@ function fail(error: unknown) {
 }
 
 export const sessionManager = {
-  isDemoEnabled: isDemoModeEnabled,
-
-  /** Resolves the connection and restores a demo session if one was active. */
+  /** Resolves the Google Sheets connection and, after a page refresh, restores this tab's sign-in. */
   async boot(): Promise<void> {
+    removeLegacyDemoData();
     const connection = await resolveConnection();
-    useSessionStore.setState({ connection, status: 'signed-out' });
-    const prefs = readPrefs();
-    if (prefs.mode === 'demo' && prefs.lastEmail && isDemoModeEnabled()) {
-      await this.signInDemo(prefs.lastEmail).catch(() => undefined);
+    useSessionStore.setState({ connection });
+    const provider = connection.config ? getGoogleProvider(connection.config) : null;
+    const identity = provider?.restoreSession();
+    if (!provider || !identity || !connection.config) {
+      useSessionStore.setState({ status: 'signed-out' });
+      return;
+    }
+    try {
+      await completeSignIn(identity, provider, sheetsDataSource(connection.config, provider), false);
+      // Load Google's script now, so the popup that renews an expired token opens within the click.
+      void provider.prepare().catch(() => undefined);
+    } catch (error) {
+      await provider.signOut().catch(() => undefined);
+      fail(error);
     }
   },
 
@@ -134,41 +161,24 @@ export const sessionManager = {
     useSessionStore.setState({ status: 'signing-in', error: null });
     try {
       const prefs = readPrefs();
-      const identity = await provider.signIn({ loginHint: prefs.mode === 'google' ? prefs.lastEmail : undefined });
-      const dataSource = new GoogleSheetsDataSource({
-        config,
-        tokens: provider,
-        audit: auditContext,
-        identityEmail: () => provider.currentIdentity?.email ?? null,
-      });
-      await completeSignIn(identity, provider, dataSource, 'google');
+      const identity = await provider.signIn({ loginHint: prefs.lastEmail });
+      await completeSignIn(identity, provider, sheetsDataSource(config, provider));
     } catch (error) {
       await provider.signOut().catch(() => undefined);
       fail(error);
     }
   },
 
-  async signInDemo(email: string): Promise<void> {
-    useSessionStore.setState({ status: 'signing-in', error: null });
-    try {
-      const provider = new DemoIdentityProvider();
-      const identity = await provider.signIn({ loginHint: email });
-      await completeSignIn(identity, provider, new BrowserDemoDataSource(auditContext), 'demo');
-    } catch (error) {
-      fail(error);
-    }
-  },
-
   /** First run on an empty spreadsheet: create the tabs and make this user Tech Admin. */
   async initializeDatabase(): Promise<void> {
-    const { dataSource, identity, provider, mode } = useSessionStore.getState();
-    if (!dataSource || !identity || !provider || !mode) throw new AppError('AUTH_REQUIRED');
+    const { dataSource, identity, provider } = useSessionStore.getState();
+    if (!dataSource || !identity || !provider) throw new AppError('AUTH_REQUIRED');
     await dataSource.admin.repairStructure();
     dataSource.clearCache();
     const user = await new BootstrapService(dataSource, (actor) => {
       currentActor = actor;
     }).initialize(identity, SCHEMA_VERSION);
-    activate(user, identity, provider, dataSource, mode);
+    activate(user, identity, provider, dataSource);
   },
 
   /** Renews an expired Google token. Must be called from a click handler. */
@@ -200,14 +210,6 @@ export const sessionManager = {
     clearDeviceConnection();
     await this.signOut();
     useSessionStore.setState({ connection: await resolveConnection() });
-  },
-
-  /** Restores the demo's sample data. */
-  async resetDemoData(): Promise<void> {
-    const { dataSource } = useSessionStore.getState();
-    if (dataSource instanceof BrowserDemoDataSource) dataSource.reset();
-    else LocalDatabase.clearStored();
-    await queryClient.invalidateQueries();
   },
 
   /** Keeps the signed-in user in sync after they edit their own record. */

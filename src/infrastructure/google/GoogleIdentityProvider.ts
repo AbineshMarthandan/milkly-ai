@@ -7,6 +7,15 @@ const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 const SCOPES = [SHEETS_SCOPE, 'openid', 'email', 'profile'].join(' ');
 /** Treat tokens as expired slightly early so a request never races expiry. */
 const EXPIRY_MARGIN_MS = 60_000;
+/** This tab's sign-in, so a page refresh does not sign the user out. */
+const SESSION_KEY = 'milkly.googleSession.v1';
+
+interface StoredSession {
+  clientId: string;
+  token: string;
+  expiresAt: number;
+  identity: Identity;
+}
 
 let scriptLoading: Promise<void> | null = null;
 
@@ -32,9 +41,10 @@ function loadScript(): Promise<void> {
  * - No client secret or private key exists anywhere: the OAuth Client ID is a
  *   public identifier and Google returns a short-lived (~1 h) access token
  *   directly to this page.
- * - The token is kept in memory only — never in localStorage/sessionStorage —
- *   so reloading the page requires signing in again (one click, no password
- *   if the Google session is alive).
+ * - The token is kept in memory and in this tab's sessionStorage, so a page
+ *   refresh keeps the user signed in. sessionStorage is cleared when the tab
+ *   closes and is never shared with other tabs; the token itself expires after
+ *   about an hour, and signing out removes it. It is never put in localStorage.
  * - Each user acts with their own Google account, so the spreadsheet's Drive
  *   sharing settings are the ultimate access control.
  */
@@ -67,7 +77,24 @@ export class GoogleIdentityProvider implements IdentityProvider, AccessTokenSour
   async signIn(options: { loginHint?: string } = {}): Promise<Identity> {
     await this.requestToken({ prompt: '', login_hint: options.loginHint });
     this.identity = await this.fetchIdentity();
+    this.saveSession();
     return this.identity;
+  }
+
+  /** Picks up this tab's sign-in after a page refresh, if its token is still valid. */
+  restoreSession(): Identity | null {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(SESSION_KEY) ?? 'null') as StoredSession | null;
+      if (!stored || stored.clientId !== this.clientId || Date.now() >= stored.expiresAt - EXPIRY_MARGIN_MS) {
+        sessionStorage.removeItem(SESSION_KEY);
+        return null;
+      }
+      this.token = { value: stored.token, expiresAt: stored.expiresAt };
+      this.identity = stored.identity;
+      return stored.identity;
+    } catch {
+      return null;
+    }
   }
 
   async reauthenticate(): Promise<void> {
@@ -81,12 +108,14 @@ export class GoogleIdentityProvider implements IdentityProvider, AccessTokenSour
       });
     }
     this.identity = identity;
+    this.saveSession();
   }
 
   async signOut(): Promise<void> {
     const token = this.token?.value;
     this.token = null;
     this.identity = null;
+    this.clearSession();
     if (token) window.google?.accounts?.oauth2?.revoke(token);
   }
 
@@ -98,10 +127,29 @@ export class GoogleIdentityProvider implements IdentityProvider, AccessTokenSour
 
   invalidateToken(): void {
     this.token = null;
+    this.clearSession();
   }
 
   get currentIdentity(): Identity | null {
     return this.identity;
+  }
+
+  private saveSession() {
+    if (!this.token || !this.identity) return;
+    const stored: StoredSession = { clientId: this.clientId, token: this.token.value, expiresAt: this.token.expiresAt, identity: this.identity };
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(stored));
+    } catch {
+      /* Storage unavailable (e.g. private mode): the user signs in again after a refresh. */
+    }
+  }
+
+  private clearSession() {
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+    } catch {
+      /* ignored */
+    }
   }
 
   private requestToken(overrides: google.accounts.oauth2.OverridableTokenClientConfig): Promise<void> {
@@ -129,7 +177,7 @@ export class GoogleIdentityProvider implements IdentityProvider, AccessTokenSour
       pending.reject(
         new AppError('AUTH_FAILED', {
           userMessage:
-            'Google Sheets access was not allowed, and the app keeps its data in your spreadsheet. Sign in again and, on Google’s permission screen, tick “See, edit, create and delete all your Google Sheets spreadsheets”, then press Continue.',
+            'Google Sheets access was not allowed, and the app keeps its data in your spreadsheet. Sign in again and, on Google’s permission screen, tick “Select all” (or “See, edit, create and delete all your Google Sheets spreadsheets”) before pressing Continue.',
         }),
       );
       return;

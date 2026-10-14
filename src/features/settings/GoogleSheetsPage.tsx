@@ -27,6 +27,7 @@ const SOURCE_LABELS = {
   device: 'Set on this browser',
   'runtime-file': 'Deployment file (app-config.json)',
   'build-env': 'Build environment (.env)',
+  'built-in': 'Built into the app',
   none: 'Not configured',
 } as const;
 
@@ -153,16 +154,6 @@ export default function GoogleSheetsPage() {
           )
         }
       />
-
-      {!isSheets && (
-        <div className="mb-5 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <p>
-            You are using <b>demo data</b> stored in this browser. Diagnostics below run against the demo store. Save a Google Sheets connection to
-            switch to real data (you will be signed out and can sign in with Google).
-          </p>
-        </div>
-      )}
 
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>

@@ -1,3 +1,4 @@
+import { BUILT_IN_GOOGLE_CONNECTION } from '@/constants/googleConnection';
 import type { ConfigSource, GoogleSheetConfig } from '@/domain/models/settings';
 import { sheetConnectionSchema } from '@/domain/validation/schemas';
 
@@ -11,6 +12,7 @@ import { sheetConnectionSchema } from '@/domain/validation/schemas';
  *   1. device   — set by a Tech Admin in Settings → Google Sheets on this browser
  *   2. runtime  — `app-config.json` deployed next to the app (change without rebuild)
  *   3. build    — `VITE_GOOGLE_*` variables in a non-committed `.env.local`
+ *   4. built-in — Milkly AI's own sheet (`src/constants/googleConnection.ts`)
  */
 const DEVICE_KEY = 'milkly.connection.v1';
 
@@ -57,8 +59,8 @@ export async function resolveConnection(): Promise<ResolvedConnection> {
   const runtime = await readRuntimeFile();
   const env = readBuildEnv();
   const deploymentDefaults = {
-    oauthClientId: runtime.oauthClientId || env.oauthClientId || '',
-    spreadsheetId: runtime.spreadsheetId || env.spreadsheetId || '',
+    oauthClientId: runtime.oauthClientId || env.oauthClientId || BUILT_IN_GOOGLE_CONNECTION.oauthClientId,
+    spreadsheetId: runtime.spreadsheetId || env.spreadsheetId || BUILT_IN_GOOGLE_CONNECTION.spreadsheetId,
   };
   const device = readDevice();
   if (device) return { config: device, source: 'device', deploymentDefaults };
@@ -66,6 +68,8 @@ export async function resolveConnection(): Promise<ResolvedConnection> {
   if (fromRuntime) return { config: fromRuntime, source: 'runtime-file', deploymentDefaults };
   const fromEnv = parse({ ...env, authMode: 'google-identity-services' });
   if (fromEnv) return { config: fromEnv, source: 'build-env', deploymentDefaults };
+  const builtIn = parse({ ...BUILT_IN_GOOGLE_CONNECTION, authMode: 'google-identity-services' });
+  if (builtIn) return { config: builtIn, source: 'built-in', deploymentDefaults };
   return { config: null, source: 'none', deploymentDefaults };
 }
 
@@ -80,11 +84,4 @@ export function saveDeviceConnection(config: GoogleSheetConfig): void {
 
 export function clearDeviceConnection(): void {
   localStorage.removeItem(DEVICE_KEY);
-}
-
-export function isDemoModeEnabled(): boolean {
-  const flag = import.meta.env.VITE_ENABLE_DEMO_MODE;
-  if (flag === 'true') return true;
-  if (flag === 'false') return false;
-  return import.meta.env.DEV;
 }

@@ -1,7 +1,8 @@
-import { Pencil, RotateCcw, UserPlus, UserX, Users } from 'lucide-react';
+import { Info, Pencil, RotateCcw, UserPlus, UserX, Users } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES, type Role, type User } from '@/domain/models';
+import { useSessionStore } from '@/app/store/sessionStore';
 import { Button } from '@/components/common/Button';
 import { EmptyState, ErrorState } from '@/components/common/Feedback';
 import { Badge, PageHeader } from '@/components/common/Layout';
@@ -81,7 +82,7 @@ export default function UsersPage() {
       <PageHeader
         eyebrow="Administration"
         title="Users"
-        description="Users sign in with Google. Also share the spreadsheet with their Google account (Editor) — the app role only controls what they can do inside Milkly."
+        description="Users sign in with Google. Their role controls what they can do inside Milkly."
         actions={
           canManage && (
             <Button icon={<UserPlus className="size-4" />} onClick={drawer.create}>
@@ -90,6 +91,7 @@ export default function UsersPage() {
           )
         }
       />
+      {canManage && <GoogleAccessNote />}
       <ExplorerToolbar search={search} onSearch={setSearch} placeholder="Search name or e-mail…">
         <StatusFilter value={status} onChange={setStatus} />
       </ExplorerToolbar>
@@ -148,5 +150,35 @@ export default function UsersPage() {
 
       <UserFormDrawer open={drawer.open} user={drawer.item} onClose={drawer.close} />
     </>
+  );
+}
+
+/** Google, not Milkly, decides who may open the sheet, so every new user also needs these two Google steps. */
+function GoogleAccessNote() {
+  const spreadsheetId = useSessionStore((state) => state.connection?.config?.spreadsheetId);
+  const link = 'font-medium text-brand-700 underline hover:text-brand-800';
+  return (
+    <div className="-mt-2 mb-4 flex items-start gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600">
+      <Info className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />
+      <div>
+        <p>After adding someone here, give their Google account access too:</p>
+        <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+          <li>
+            Share the{' '}
+            <a className={link} href={`https://docs.google.com/spreadsheets/d/${spreadsheetId ?? ''}/edit`} target="_blank" rel="noreferrer">
+              spreadsheet
+            </a>{' '}
+            with their e-mail as <b>Editor</b>.
+          </li>
+          <li>
+            Add their e-mail as a{' '}
+            <a className={link} href="https://console.cloud.google.com/auth/audience" target="_blank" rel="noreferrer">
+              test user in Google Cloud
+            </a>{' '}
+            (Audience → Add users).
+          </li>
+        </ol>
+      </div>
+    </div>
   );
 }

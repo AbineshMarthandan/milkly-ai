@@ -2,10 +2,11 @@
 #
 # One-time setup in the GitHub repository:
 #   Settings → Pages → Build and deployment → Source: "GitHub Actions"
-#   Settings → Secrets and variables → Actions → Variables (public identifiers, not secrets):
+#   Optional — only to deploy against a different sheet than the built-in one
+#   (src/constants/googleConnection.ts). Settings → Secrets and variables → Actions →
+#   Variables (public identifiers, not secrets):
 #     GOOGLE_OAUTH_CLIENT_ID   OAuth 2.0 Web client ID
 #     GOOGLE_SPREADSHEET_ID    ID of the database spreadsheet
-#     ENABLE_DEMO_MODE         optional, "true" to offer the browser-only demo
 name: Deploy to GitHub Pages
 
 on:
@@ -43,7 +44,6 @@ jobs:
           BASE_PATH: /${{ github.event.repository.name }}/
           VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.GOOGLE_OAUTH_CLIENT_ID }}
           VITE_GOOGLE_SPREADSHEET_ID: ${{ vars.GOOGLE_SPREADSHEET_ID }}
-          VITE_ENABLE_DEMO_MODE: ${{ vars.ENABLE_DEMO_MODE || 'false' }}
 
       - uses: actions/configure-pages@v6
 

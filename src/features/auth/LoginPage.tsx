@@ -1,8 +1,6 @@
-import { AlertTriangle, FlaskConical, Settings2 } from 'lucide-react';
+import { AlertTriangle, Settings2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
-import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/domain/models';
-import { DEMO_USERS } from '@/infrastructure/browser-demo/seed';
 import { sessionManager } from '@/app/store/sessionManager';
 import { useSessionStore } from '@/app/store/sessionStore';
 import { Button } from '@/components/common/Button';
@@ -31,7 +29,6 @@ export default function LoginPage() {
   const { status, connection, error, identity } = useSessionStore();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? '/dashboard';
-  const demoEnabled = sessionManager.isDemoEnabled();
   const busy = status === 'signing-in';
 
   useEffect(() => {
@@ -62,9 +59,14 @@ export default function LoginPage() {
 
       <div className="mt-6 space-y-3">
         {connection?.config ? (
-          <Button size="lg" variant="secondary" className="w-full" loading={busy} icon={<GoogleMark />} onClick={() => void sessionManager.signInWithGoogle()}>
-            Sign in with Google
-          </Button>
+          <>
+            <Button size="lg" variant="secondary" className="w-full" loading={busy} icon={<GoogleMark />} onClick={() => void sessionManager.signInWithGoogle()}>
+              Sign in with Google
+            </Button>
+            <p className="text-center text-xs text-slate-500">
+              First time? When Google asks what Milkly AI may access, tick <b>Select all</b> (Google Sheets) before pressing Continue.
+            </p>
+          </>
         ) : (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <p className="font-medium">Not connected to a spreadsheet yet</p>
@@ -77,29 +79,6 @@ export default function LoginPage() {
           </div>
         )}
       </div>
-
-      {demoEnabled && (
-        <div className="mt-8 border-t border-slate-200 pt-6">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <FlaskConical className="size-4 text-amber-600" /> Try the demo
-          </div>
-          <p className="mt-1 text-xs text-slate-500">Sample data stored only in this browser. Pick a role to see what it can do.</p>
-          <div className="mt-3 grid gap-2">
-            {DEMO_USERS.map((user) => (
-              <button
-                key={user.email}
-                type="button"
-                disabled={busy}
-                onClick={() => void sessionManager.signInDemo(user.email)}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-left transition hover:border-brand-300 hover:bg-brand-50 disabled:opacity-50"
-              >
-                <div className="text-sm font-medium text-slate-800">{ROLE_LABELS[user.role]}</div>
-                <div className="text-xs text-slate-500">{ROLE_DESCRIPTIONS[user.role]}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {connection?.config && (
         <p className="mt-6 text-center text-xs text-slate-400">
